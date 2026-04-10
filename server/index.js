@@ -53,6 +53,13 @@ let syncHistory = [];
 let layerLocks = {}; // { layerName: { user: 'name', timestamp: '...' } }
 
 // API Endpoints
+app.get('/api/files', (req, res) => {
+    const uploadPath = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadPath)) return res.json([]);
+    const files = fs.readdirSync(uploadPath).filter(f => f.endsWith('.dwg') || f.endsWith('.dxf'));
+    res.json(files);
+});
+
 app.get('/api/status', (req, res) => {
     res.json({ 
         message: "Servidor CAD Sync activo", 

@@ -10,6 +10,8 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Windows;
 using Newtonsoft.Json;
+using SocketIOClient;
+using SocketIOClient.Newtonsoft.Json;
 
 [assembly: ExtensionApplication(typeof(CadSyncPlugin.PluginMain))]
 
@@ -25,16 +27,35 @@ namespace CadSyncPlugin
     {
         private static PaletteSet _paletteSet;
         public static CadSyncControl MyControl;
+        private static SocketIOClient.SocketIO _socket;
 
         public void Initialize()
         {
-            // Se ejecuta al cargar el plugin
             try {
                 Application.Idle += (s, e) => ShowPalette();
+                _ = ConnectSocket();
             } catch { }
         }
 
-        public void Terminate() { }
+        private async Task ConnectSocket()
+        {
+            var url = Commands.GetServerUrl();
+            _socket = new SocketIOClient.SocketIO(url);
+            
+            _socket.On("lock_update", response => {
+                var locks = response.GetValue<Dictionary<string, dynamic>>();
+                if (MyControl != null) MyControl.UpdateLocks(locks);
+                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n[CADSYNC] Actualización de bloqueos recibida.");
+            });
+
+            _socket.On("sync_update", response => {
+                if (MyControl != null) _ = MyControl.RefreshFiles();
+            });
+
+            try { await _socket.ConnectAsync(); } catch { }
+        }
+
+        public void Terminate() { if (_socket != null) _socket.DisconnectAsync(); }
 
         public static void ShowPalette()
         {
@@ -55,10 +76,9 @@ namespace CadSyncPlugin
     {
         private static Config _config = new Config();
         private static readonly string ConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CadSyncConfig.json");
-        private static readonly HttpClient client = new HttpClient();
+        public static readonly HttpClient client = new HttpClient();
 
         static Commands() { LoadConfig(); }
-
         public static string GetServerUrl() => _config.ServerUrl;
 
         private static void LoadConfig()
@@ -79,14 +99,12 @@ namespace CadSyncPlugin
         public void CadSyncSetup()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            Editor ed = doc.Editor;
             PromptStringOptions opts = new PromptStringOptions($"\nURL actual [{_config.ServerUrl}]. Nueva URL: ");
-            PromptResult res = ed.GetString(opts);
+            PromptResult res = doc.Editor.GetString(opts);
             if (res.Status == PromptStatus.OK) {
                 _config.ServerUrl = res.StringResult;
                 SaveConfig();
-                ed.WriteMessage("\n[CADSYNC] Servidor configurado.");
-                if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog("Servidor actualizado.");
+                Application.ShowAlertDialog("Reinicia AutoCAD para conectar al nuevo servidor.");
             }
         }
 
@@ -94,11 +112,9 @@ namespace CadSyncPlugin
         public void CadSyncReserveUI()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            PromptStringOptions opts = new PromptStringOptions(""); // Se espera parámetro desde SendStringToExecute
+            PromptStringOptions opts = new PromptStringOptions("");
             PromptResult res = doc.Editor.GetString(opts);
-            if (res.Status == PromptStatus.OK) {
-                _ = ExecuteReserve(doc, res.StringResult.ToUpper());
-            }
+            if (res.Status == PromptStatus.OK) _ = ExecuteReserve(doc, res.StringResult.ToUpper());
         }
 
         private static async Task ExecuteReserve(Document doc, string layer)
@@ -108,22 +124,22 @@ namespace CadSyncPlugin
             try {
                 var response = await client.PostAsync($"{_config.ServerUrl}/api/lock", content);
                 if (response.IsSuccessStatusCode) {
-                    ApplyLayerLocks(doc, layer);
-                    if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Capa {layer} reservada.");
-                } else {
-                    doc.Editor.WriteMessage("\nError: Capa ocupada.");
+                    ApplyLayerLocks(doc, new List<string> { layer }); // El usuario local desbloquea su capa
+                    if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Has reservado {layer}");
                 }
             } catch { }
         }
 
-        private static void ApplyLayerLocks(Document doc, string allowedLayer)
+        public static void ApplyLayerLocks(Document doc, List<string> allowedLayers)
         {
             Database db = doc.Database;
             using (var tr = db.TransactionManager.StartTransaction()) {
                 LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
                 foreach (ObjectId id in lt) {
                     LayerTableRecord ltr = (LayerTableRecord)tr.GetObject(id, OpenMode.ForWrite);
-                    ltr.IsLocked = (ltr.Name.ToUpper() != allowedLayer);
+                    bool isAllowed = false;
+                    foreach (var al in allowedLayers) if (ltr.Name.ToUpper() == al.ToUpper()) isAllowed = true;
+                    ltr.IsLocked = !isAllowed;
                 }
                 tr.Commit();
             }
@@ -133,11 +149,9 @@ namespace CadSyncPlugin
         public void CadSyncPullUI()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            PromptStringOptions opts = new PromptStringOptions("\nNombre del archivo a bajar (ej: plano.dwg): ");
+            PromptStringOptions opts = new PromptStringOptions("");
             PromptResult res = doc.Editor.GetString(opts);
-            if (res.Status == PromptStatus.OK) {
-                _ = ExecutePull(doc, res.StringResult);
-            }
+            if (res.Status == PromptStatus.OK) _ = ExecutePull(doc, res.StringResult);
         }
 
         private static async Task ExecutePull(Document doc, string filename)
@@ -145,12 +159,9 @@ namespace CadSyncPlugin
             try {
                 var response = await client.GetAsync($"{_config.ServerUrl}/api/download/{filename}");
                 if (response.IsSuccessStatusCode) {
-                    string localPath = Path.Combine(Path.GetTempPath(), filename);
-                    using (var fs = new FileStream(localPath, FileMode.Create)) {
-                        await response.Content.CopyToAsync(fs);
-                    }
-                    if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Bajado: {filename}");
-                    Application.ShowAlertDialog($"Archivo bajado en:\n{localPath}\nPuedes abrirlo para ver los cambios.");
+                    string localPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), filename);
+                    using (var fs = new FileStream(localPath, FileMode.Create)) await response.Content.CopyToAsync(fs);
+                    Application.ShowAlertDialog($"Descargado en Escritorio:\n{filename}");
                 }
             } catch { }
         }
@@ -166,9 +177,7 @@ namespace CadSyncPlugin
                     form.Add(new StringContent(_config.LastUser), "user");
                     using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
                         form.Add(new StreamContent(stream), "file", Path.GetFileName(filePath));
-                        var response = await client.PostAsync($"{_config.ServerUrl}/api/sync", form);
-                        if (response.IsSuccessStatusCode && PluginMain.MyControl != null) 
-                            PluginMain.MyControl.AddLog("Sincronización exitosa.");
+                        await client.PostAsync($"{_config.ServerUrl}/api/sync", form);
                     }
                 }
             } catch { }

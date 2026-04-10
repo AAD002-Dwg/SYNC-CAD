@@ -71,14 +71,18 @@
 
         <!-- Actions -->
         <StackPanel Grid.Row="4" Margin="0,10,0,0">
-            <Button x:Name="BtnPull" Content="DESCARGAR ÚLTIMA VERSIÓN" Height="35" Background="#475569" Foreground="White" FontWeight="SemiBold" Click="BtnPull_Click">
+            <TextBlock Text="ARCHIVOS DISPONIBLES" Foreground="#94a3b8" FontSize="10" Margin="0,0,0,5"/>
+            <ComboBox x:Name="FileCombo" Background="#334155" Foreground="White" BorderThickness="0" Padding="5" Margin="0,0,0,10">
+                <ComboBoxItem Content="Cargando archivos..."/>
+            </ComboBox>
+            <Button x:Name="BtnPull" Content="BAJAR SELECCIONADO" Height="30" Background="#475569" Foreground="White" FontWeight="SemiBold" Click="BtnPull_Click" Margin="0,0,0,10">
                 <Button.Resources>
                     <Style TargetType="Border">
                         <Setter Property="CornerRadius" Value="6"/>
                     </Style>
                 </Button.Resources>
             </Button>
-            <Button x:Name="BtnSync" Content="SUBIR MIS CAMBIOS (PUSH)" Margin="0,8,0,0" Height="45" Background="#818cf8" Foreground="White" FontWeight="Bold" Click="BtnSync_Click">
+            <Button x:Name="BtnSync" Content="SUBIR MIS CAMBIOS (PUSH)" Height="45" Background="#818cf8" Foreground="White" FontWeight="Bold" Click="BtnSync_Click">
                  <Button.Resources>
                     <Style TargetType="Border">
                         <Setter Property="CornerRadius" Value="6"/>
