@@ -60,14 +60,37 @@ namespace CadSyncPlugin
             string layerName = (LayerCombo.SelectedItem as ComboBoxItem).Content.ToString();
             AddLog($"Reservando capa: {layerName}...");
             Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_RESERVE_UI {layerName} ", true, false, false);
+            
+            // Habilitar botón de Push Delta
+            BtnPushDelta.IsEnabled = true;
+            BtnPushDelta.Content = $"SUBIR CAMBIOS: {layerName}";
+        }
+
+        private void BtnPushDelta_Click(object sender, RoutedEventArgs e)
+        {
+            AddLog("Subiendo delta de mi capa...");
+            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute("CADSYNC_PUSH_DELTA ", true, false, false);
         }
 
         private void BtnPull_Click(object sender, RoutedEventArgs e)
         {
             if (FileCombo.SelectedItem == null) return;
             string fileName = FileCombo.SelectedItem.ToString();
+            
+            if (fileName.EndsWith(".dwg") && fileName.Contains("_")) {
+                // Es un delta (ej: Proyecto_ELECTRICO.dwg) -> NO, en mi lógica es Capa.dwg
+            }
+
             AddLog($"Descargando {fileName}...");
-            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_UI {fileName} ", true, false, false);
+            
+            // Si el nombre coincide con una capa conocida, tratamos de hacer MERGE
+            // Para simplificar, si el archivo es un DWG pequeño, intentamos PULL_DELTA
+            if (fileName.Contains(".dwg")) {
+                string layerPart = fileName.Replace(".dwg", "");
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_DELTA {layerPart} ", true, false, false);
+            } else {
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_UI {fileName} ", true, false, false);
+            }
         }
 
         private void BtnSync_Click(object sender, RoutedEventArgs e)

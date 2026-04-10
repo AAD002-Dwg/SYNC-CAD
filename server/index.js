@@ -90,13 +90,14 @@ app.post('/api/unlock', (req, res) => {
 });
 
 app.post('/api/sync', upload.single('file'), (req, res) => {
-    const { user, project } = req.body;
+    const { user, project, layer } = req.body;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "No se subió ningún archivo" });
 
     const syncEntry = {
         user: user || "Usuario Desconocido",
         project: project || "Default",
+        layer: layer || null, // Guardar la capa si es un delta
         filename: file.originalname,
         timestamp: new Date().toISOString()
     };

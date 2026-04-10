@@ -9,6 +9,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Windows;
+using Autodesk.AutoCAD.Geometry;
 using Newtonsoft.Json;
 using SocketIOClient;
 using SocketIOClient.Newtonsoft.Json;
@@ -21,6 +22,7 @@ namespace CadSyncPlugin
     {
         public string ServerUrl { get; set; } = "http://localhost:3001";
         public string LastUser { get; set; } = Environment.UserName;
+        public string LastLayer { get; set; } = "";
     }
 
     public class PluginMain : IExtensionApplication
@@ -114,7 +116,10 @@ namespace CadSyncPlugin
             Document doc = Application.DocumentManager.MdiActiveDocument;
             PromptStringOptions opts = new PromptStringOptions("");
             PromptResult res = doc.Editor.GetString(opts);
-            if (res.Status == PromptStatus.OK) _ = ExecuteReserve(doc, res.StringResult.ToUpper());
+            if (res.Status == PromptStatus.OK) {
+                _config.LastLayer = res.StringResult.ToUpper();
+                _ = ExecuteReserve(doc, _config.LastLayer);
+            }
         }
 
         private static async Task ExecuteReserve(Document doc, string layer)
@@ -124,8 +129,8 @@ namespace CadSyncPlugin
             try {
                 var response = await client.PostAsync($"{_config.ServerUrl}/api/lock", content);
                 if (response.IsSuccessStatusCode) {
-                    ApplyLayerLocks(doc, new List<string> { layer }); // El usuario local desbloquea su capa
-                    if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Has reservado {layer}");
+                    ApplyLayerLocks(doc, new List<string> { layer });
+                    if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Reservada: {layer}");
                 }
             } catch { }
         }
@@ -145,25 +150,107 @@ namespace CadSyncPlugin
             }
         }
 
-        [CommandMethod("CADSYNC_PULL_UI", CommandFlags.Session)]
-        public void CadSyncPullUI()
+        [CommandMethod("CADSYNC_PUSH_DELTA", CommandFlags.Session)]
+        public async void CadSyncPushDelta()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (string.IsNullOrEmpty(_config.LastLayer)) {
+                Application.ShowAlertDialog("No tienes ninguna capa reservada para subir delta.");
+                return;
+            }
+
+            try {
+                Database db = doc.Database;
+                ObjectIdCollection ids = new ObjectIdCollection();
+                using (var tr = db.TransactionManager.StartTransaction()) {
+                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    BlockTableRecord ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                    foreach (ObjectId id in ms) {
+                        Entity ent = (Entity)tr.GetObject(id, OpenMode.ForRead);
+                        if (ent.Layer.ToUpper() == _config.LastLayer) ids.Add(id);
+                    }
+                    tr.Commit();
+                }
+
+                if (ids.Count == 0) {
+                    Application.ShowAlertDialog($"La capa {_config.LastLayer} está vacía.");
+                    return;
+                }
+
+                string tempPath = Path.Combine(Path.GetTempPath(), $"{_config.LastLayer}.dwg");
+                using (Database sideDb = db.Wblock(ids, Point3d.Origin)) {
+                    sideDb.SaveAs(tempPath, DwgVersion.Current);
+                }
+
+                using (var form = new MultipartFormDataContent()) {
+                    form.Add(new StringContent(_config.LastUser), "user");
+                    form.Add(new StringContent(_config.LastLayer), "layer");
+                    using (var stream = new FileStream(tempPath, FileMode.Open)) {
+                        form.Add(new StreamContent(stream), "file", Path.GetFileName(tempPath));
+                        await client.PostAsync($"{_config.ServerUrl}/api/sync", form);
+                    }
+                }
+                if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Delta {_config.LastLayer} subido.");
+            } catch (System.Exception ex) {
+                doc.Editor.WriteMessage($"\nError en Push Delta: {ex.Message}");
+            }
+        }
+
+        [CommandMethod("CADSYNC_PULL_DELTA", CommandFlags.Session)]
+        public void CadSyncPullDelta()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             PromptStringOptions opts = new PromptStringOptions("");
             PromptResult res = doc.Editor.GetString(opts);
-            if (res.Status == PromptStatus.OK) _ = ExecutePull(doc, res.StringResult);
+            if (res.Status == PromptStatus.OK) _ = ExecuteMergeDelta(doc, res.StringResult.ToUpper());
         }
 
-        private static async Task ExecutePull(Document doc, string filename)
+        private static async Task ExecuteMergeDelta(Document doc, string layerName)
         {
             try {
+                string filename = $"{layerName}.dwg";
                 var response = await client.GetAsync($"{_config.ServerUrl}/api/download/{filename}");
-                if (response.IsSuccessStatusCode) {
-                    string localPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), filename);
-                    using (var fs = new FileStream(localPath, FileMode.Create)) await response.Content.CopyToAsync(fs);
-                    Application.ShowAlertDialog($"Descargado en Escritorio:\n{filename}");
+                if (!response.IsSuccessStatusCode) return;
+
+                string tempPath = Path.Combine(Path.GetTempPath(), $"remote_{layerName}.dwg");
+                using (var fs = new FileStream(tempPath, FileMode.Create)) await response.Content.CopyToAsync(fs);
+
+                Database db = doc.Database;
+                using (doc.LockDocument())
+                using (var tr = db.TransactionManager.StartTransaction()) {
+                    // 1. Borrar local
+                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    BlockTableRecord ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+                    foreach (ObjectId id in ms) {
+                        Entity ent = (Entity)tr.GetObject(id, OpenMode.ForRead);
+                        if (ent.Layer.ToUpper() == layerName) {
+                            tr.GetObject(id, OpenMode.ForWrite);
+                            ent.Erase();
+                        }
+                    }
+
+                    // 2. Traer remoto
+                    using (Database sideDb = new Database(false, true)) {
+                        sideDb.ReadDwgFile(tempPath, FileShare.Read, true, "");
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        using (var trSide = sideDb.TransactionManager.StartTransaction()) {
+                            BlockTable btSide = (BlockTable)trSide.GetObject(sideDb.BlockTableId, OpenMode.ForRead);
+                            BlockTableRecord msSide = (BlockTableRecord)trSide.GetObject(btSide[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                            foreach (ObjectId id in msSide) idsToClone.Add(id);
+                            trSide.Commit();
+                        }
+                        
+                        IdMapping idMap = new IdMapping();
+                        db.WblockCloneObjects(idsToClone, ms.ObjectId, idMap, DuplicateRecordCloning.Replace, false);
+                    }
+
+                    tr.Commit();
+                    doc.Editor.Regen();
                 }
-            } catch { }
+                if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Capa {layerName} actualizada.");
+            } catch (System.Exception ex) {
+                Application.ShowAlertDialog($"Error al fusionar: {ex.Message}");
+            }
         }
 
         [CommandMethod("CADSYNC_PUSH", CommandFlags.Session)]

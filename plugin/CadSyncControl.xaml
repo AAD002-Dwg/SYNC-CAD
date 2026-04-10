@@ -82,7 +82,16 @@
                     </Style>
                 </Button.Resources>
             </Button>
-            <Button x:Name="BtnSync" Content="SUBIR MIS CAMBIOS (PUSH)" Height="45" Background="#818cf8" Foreground="White" FontWeight="Bold" Click="BtnSync_Click">
+            
+            <Button x:Name="BtnPushDelta" Content="SUBIR MI CAPA" Height="35" Background="#10b981" Foreground="White" FontWeight="Bold" Click="BtnPushDelta_Click" Margin="0,0,0,10" IsEnabled="False">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="6"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+
+            <Button x:Name="BtnSync" Content="SUBIR TODO (FULL PUSH)" Height="35" Background="#818cf8" Foreground="White" FontWeight="Bold" Click="BtnSync_Click">
                  <Button.Resources>
                     <Style TargetType="Border">
                         <Setter Property="CornerRadius" Value="6"/>
