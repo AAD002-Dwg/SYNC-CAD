@@ -22,6 +22,14 @@
       <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="acwindows">
+      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\acwindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="adwindows">
+      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\adwindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
