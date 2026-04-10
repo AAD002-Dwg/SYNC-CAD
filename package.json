@@ -1,0 +1,10 @@
+{
+  "name": "cad-sync-monorepo",
+  "version": "1.0.0",
+  "scripts": {
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build:client": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "render-build": "npm run install:all && npm run build:client"
+  }
+}

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AssemblyName>CadSyncPlugin</AssemblyName>
+    <RootNamespace>CadSyncPlugin</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Referencias de AutoCAD - Ajustar estas rutas según tu instalación -->
+    <Reference Include="accoremgd">
+      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\accoremgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="acdbmgd">
+      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\acdbmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\acmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

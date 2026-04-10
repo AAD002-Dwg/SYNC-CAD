@@ -1,0 +1,14 @@
+node_modules/
+dist/
+client/node_modules/
+client/dist/
+server/node_modules/
+server/uploads/*
+!server/uploads/.gitkeep
+plugin/bin/
+plugin/obj/
+bin/
+*.dll
+*.pdb
+.env
+.DS_Store
