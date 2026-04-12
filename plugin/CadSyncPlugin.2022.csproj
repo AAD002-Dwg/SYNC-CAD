@@ -29,5 +29,14 @@
     <Compile Remove="CadSyncInstaller\**" />
     <EmbeddedResource Remove="CadSyncInstaller\**" />
     <None Remove="CadSyncInstaller\**" />
+    <Compile Remove="obj\**" />
+    <EmbeddedResource Remove="obj\**" />
+    <None Remove="obj\**" />
+    <Compile Remove="obj_2022\**" />
+    <EmbeddedResource Remove="obj_2022\**" />
+    <None Remove="obj_2022\**" />
+    <Compile Remove="bin\**" />
+    <EmbeddedResource Remove="bin\**" />
+    <None Remove="bin\**" />
   </ItemGroup>
 </Project>

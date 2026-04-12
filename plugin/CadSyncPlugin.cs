@@ -601,7 +601,7 @@ namespace CadSyncPlugin
                 }
 
                 string tempPath = Path.Combine(Path.GetTempPath(),
-                    $"remote_{Guid.NewGuid().ToString()[..8]}.dwg");
+                    $"remote_{Guid.NewGuid().ToString().Substring(0, 8)}.dwg");
                 using (var fs = new FileStream(tempPath, FileMode.Create))
                     await response.Content.CopyToAsync(fs);
 

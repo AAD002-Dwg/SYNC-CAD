@@ -1,0 +1,5 @@
+is_global = true
+build_property.RootNamespace = CadSyncPlugin
+build_property.ProjectDir = G:\SYNC-CAD\plugin\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 

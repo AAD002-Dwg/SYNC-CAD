@@ -20,24 +20,18 @@ if exist obj_2022 rd /s /q obj_2022
 
 mkdir "%CONTENTS_DIR%\2022"
 mkdir "%CONTENTS_DIR%\2025"
-mkdir "%CONTENTS_DIR%\2027"
 
 :: 2. Compilacion de Plugins
 echo [1/3] Compilando versiones...
 
 :: --- FASE 2022 ---
 echo - AutoCAD 2022 (net48)...
-:: Forzamos SDK 8 y aislamos el proyecto para evitar el bug del SDK 10
-echo { "sdk": { "version": "8.0.419", "rollForward": "latestFeature" } } > global.json
+:: Aislamos el proyecto
 dotnet build CadSyncPlugin.2022.csproj -c Release -o "%CONTENTS_DIR%\2022" -p:BaseIntermediateOutputPath=obj_2022/
-if exist global.json del global.json
 
 :: --- FASE MODERNA ---
 echo - AutoCAD 2025 (net8.0)...
 dotnet build CadSyncPlugin.csproj -c Release -f net8.0-windows -o "%CONTENTS_DIR%\2025"
-
-echo - AutoCAD 2027 (net10.0)...
-dotnet build CadSyncPlugin.csproj -c Release -f net10.0-windows -o "%CONTENTS_DIR%\2027"
 
 :: 3. Empaquetado
 echo [2/3] Copiando manifiesto...

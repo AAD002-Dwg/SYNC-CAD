@@ -10,15 +10,13 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("InstalarCadSync")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("CadSyncPlugin")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
 [assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ccaf784a3e1b44d6a4951411269a8750a5ecf7de")]
-[assembly: System.Reflection.AssemblyProductAttribute("InstalarCadSync")]
-[assembly: System.Reflection.AssemblyTitleAttribute("InstalarCadSync")]
+[assembly: System.Reflection.AssemblyProductAttribute("CadSyncPlugin")]
+[assembly: System.Reflection.AssemblyTitleAttribute("CadSyncPlugin")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
-[assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
-[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 
 // Generado por la clase WriteCodeFragment de MSBuild.
 
