@@ -1,124 +1,159 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, FolderOpen, FileCode2, ChevronLeft, Sun, Moon, Wifi, WifiOff, Menu, X } from 'lucide-react';
 import { io } from 'socket.io-client';
-import './App.css';
+import DashboardPage from './pages/DashboardPage';
+import ProjectsPage from './pages/ProjectsPage';
+import FilesPage from './pages/FilesPage';
+import './index.css';
 
-// URL dinámica: Si estamos en producción, usamos el mismo host.
-const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
-const API_URL = `${SOCKET_URL}/api`;
+export const SOCKET_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001'
+  : window.location.origin;
 
-function App() {
-  const [history, setHistory] = useState([]);
-  const [locks, setLocks] = useState({});
-  const [file, setFile] = useState(null);
-  const [user, setUser] = useState(() => localStorage.getItem('cad_user') || `User-${Math.floor(Math.random() * 1000)}`);
-  const [status, setStatus] = useState('Conectado');
-  const [serverInfo, setServerInfo] = useState({ ip: '...', url: SOCKET_URL });
+export const API_URL = `${SOCKET_URL}/api`;
+
+const NAV_ITEMS = [
+  { to: '/',          icon: LayoutDashboard, label: 'Dashboard'  },
+  { to: '/proyectos', icon: FolderOpen,      label: 'Proyectos'  },
+  { to: '/archivos',  icon: FileCode2,       label: 'Archivos'   },
+];
+
+function PageTitle() {
+  const location = useLocation();
+  const match = NAV_ITEMS.find(item =>
+    item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+  );
+  return <span className="app-topbar__title">{match?.label ?? 'CAD Sync'}</span>;
+}
+
+function AppLayout({ theme, setTheme }) {
+  const [collapsed, setCollapsed]       = useState(false);
+  const [mobileOpen, setMobileOpen]     = useState(false);
+  const [connected, setConnected]       = useState(false);
+  const [user]                          = useState(
+    () => localStorage.getItem('cad_user') || `User-${Math.floor(Math.random() * 1000)}`
+  );
 
   useEffect(() => {
-    localStorage.setItem('cad_user', user);
-    
-    // Cargar status inicial
-    axios.get(`${API_URL}/status`)
-      .then(res => {
-        setHistory(res.data.history);
-        setLocks(res.data.locks);
-        setServerInfo({ ip: res.data.serverIp, url: SOCKET_URL });
-      })
-      .catch(err => console.error("Error:", err));
-
     const socket = io(SOCKET_URL);
-    socket.on('connect', () => setStatus('Sincronizado'));
-    socket.on('sync_update', (newEntry) => setHistory(prev => [newEntry, ...prev]));
-    socket.on('lock_update', (newLocks) => setLocks(newLocks));
-
+    socket.on('connect',    () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
     return () => socket.disconnect();
-  }, [user]);
+  }, []);
 
-  const handleUpload = async () => {
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('user', user);
-    formData.append('project', 'Cloud-Sync');
-    try {
-      await axios.post(`${API_URL}/sync`, formData);
-      setFile(null);
-    } catch (err) { alert(err.message); }
-  };
-
-  const layers = ['ARQUITECTURA', 'ESTRUCTURA', 'ELECTRICIDAD', 'FONTANERIA'];
-
-  const toggleLock = async (layer) => {
-    const isLockedByMe = locks[layer]?.user === user;
-    if (isLockedByMe) {
-      await axios.post(`${API_URL}/unlock`, { layer, user });
-    } else {
-      try {
-        await axios.post(`${API_URL}/lock`, { layer, user });
-      } catch (err) {
-        alert(err.response?.data?.error || "Error al bloquear");
-      }
-    }
-  };
+  const closeMobile = () => setMobileOpen(false);
 
   return (
-    <div className="App">
-      <header>
-        <h1>CAD Sync Cloud</h1>
-        <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.5rem', borderRadius: '8px', fontSize: '0.8rem' }}>
-          Configuración Plugin: <strong>{serverInfo.url}</strong> (IP: {serverInfo.ip})
+    <div className="app-layout">
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="sidebar-overlay" onClick={closeMobile} />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`ad-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+        <div className="ad-sidebar__header">
+          <div className="ad-sidebar__logo">CS</div>
+          <span className="ad-sidebar__brand">CAD Sync</span>
+          {/* Close button on mobile */}
+          <button
+            className="ad-btn ad-btn--icon"
+            onClick={closeMobile}
+            style={{ marginLeft: 'auto', display: mobileOpen ? 'flex' : 'none' }}
+          >
+            <X size={15} />
+          </button>
         </div>
-      </header>
 
-      <div className="card">
-        <section style={{ marginBottom: '2rem' }}>
-          <h3>Panel de Capas (Modelo A)</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {layers.map(l => (
-              <div key={l} style={{ 
-                padding: '1rem', 
-                borderRadius: '12px', 
-                background: locks[l] ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                border: `1px solid ${locks[l] ? '#ef4444' : '#22c55e'}`,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-              }}>
-                <span>{l}</span>
-                <button 
-                  onClick={() => toggleLock(l)}
-                  style={{ 
-                    padding: '4px 12px', fontSize: '0.8rem',
-                    background: locks[l]?.user === user ? '#ef4444' : (locks[l] ? '#475569' : '#22c55e')
-                  }}
-                  disabled={locks[l] && locks[l].user !== user}
-                >
-                  {locks[l]?.user === user ? 'Liberar' : (locks[l] ? 'Ocupado' : 'Reservar')}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
+        <nav className="ad-sidebar__nav">
+          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) => `ad-sidebar__item ${isActive ? 'active' : ''}`}
+              onClick={closeMobile}
+            >
+              <span className="ad-sidebar__item-icon"><Icon size={16} /></span>
+              <span className="ad-sidebar__item-label">{label}</span>
+            </NavLink>
+          ))}
+        </nav>
 
-        <section>
-          <h3>Subir Nueva Versión</h3>
-          <input type="file" accept=".dwg,.dxf" onChange={(e) => setFile(e.target.files[0])} />
-          <button onClick={handleUpload} disabled={!file}>Sincronizar Plano</button>
-        </section>
+        <div className="ad-sidebar__footer">
+          <button
+            className="ad-sidebar__toggle"
+            onClick={() => setCollapsed(c => !c)}
+            title={collapsed ? 'Expandir' : 'Colapsar'}
+          >
+            <ChevronLeft
+              size={15}
+              style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s' }}
+            />
+          </button>
+        </div>
+      </aside>
 
-        <section style={{ marginTop: '2rem' }}>
-          <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>Historial</h3>
-          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-            {history.map((item, index) => (
-              <div key={index} className="history-item">
-                <span>{item.filename} por <strong>{item.user}</strong></span>
-                <span className="timestamp">{new Date(item.timestamp).toLocaleTimeString()}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Main area */}
+      <div className="app-content">
+        <header className="app-topbar">
+          {/* Mobile hamburger */}
+          <button className="topbar-menu-btn" onClick={() => setMobileOpen(true)}>
+            <Menu size={18} />
+          </button>
+
+          <PageTitle />
+          <span className="app-topbar__badge">v1.2</span>
+
+          <div className="topbar-spacer" />
+
+          {/* Connection status */}
+          <span
+            className="topbar-status"
+            style={{ color: connected ? 'var(--success)' : 'var(--error)' }}
+          >
+            {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
+            <span style={{ fontSize: 'var(--fs-xs)' }}>{connected ? 'Conectado' : 'Sin conexión'}</span>
+          </span>
+
+          {/* Theme toggle */}
+          <button
+            className="ad-btn ad-btn--ghost ad-btn--sm"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+
+          {/* User chip */}
+          <span className="topbar-user" title={user}>{user}</span>
+        </header>
+
+        <main className="app-main">
+          <Routes>
+            <Route path="/"          element={<DashboardPage />} />
+            <Route path="/proyectos" element={<ProjectsPage />}  />
+            <Route path="/archivos"  element={<FilesPage />}     />
+          </Routes>
+        </main>
       </div>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('cad_theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('cad_theme', theme);
+  }, [theme]);
+
+  return (
+    <BrowserRouter>
+      <AppLayout theme={theme} setTheme={setTheme} />
+    </BrowserRouter>
+  );
+}

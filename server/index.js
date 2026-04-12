@@ -50,6 +50,21 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// ── Persistent app data (projects + file metadata) ──────────
+const DATA_FILE = path.join(__dirname, 'app-data.json');
+
+function loadData() {
+    try {
+        if (fs.existsSync(DATA_FILE))
+            return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    } catch { /* fall through */ }
+    return { projects: [], fileMeta: {} };
+}
+
+function saveData(data) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
 // Memoria de estado
 let syncHistory = [];
 let layerLocks = {}; // { layerName: { user: 'name', timestamp: '...' } }
@@ -88,6 +103,52 @@ app.post('/api/lock', (req, res) => {
     res.json({ message: `Capa ${layer} reservada para ${user}` });
 });
 
+// ── Projects ─────────────────────────────────────────────────
+
+app.get('/api/projects', (req, res) => {
+    const data = loadData();
+    res.json(data.projects ?? []);
+});
+
+app.post('/api/projects', (req, res) => {
+    const { name, color } = req.body;
+    if (!name) return res.status(400).json({ error: 'Nombre requerido' });
+    const data = loadData();
+    const project = {
+        id: Date.now().toString(),
+        name: name.trim(),
+        color: color || '#55AAFF',
+        createdAt: new Date().toISOString()
+    };
+    data.projects.push(project);
+    saveData(data);
+    res.json(project);
+});
+
+app.delete('/api/projects/:id', (req, res) => {
+    const data = loadData();
+    data.projects = data.projects.filter(p => p.id !== req.params.id);
+    saveData(data);
+    res.json({ message: 'Eliminado' });
+});
+
+// ── File metadata ─────────────────────────────────────────────
+
+app.get('/api/files/meta', (req, res) => {
+    const data = loadData();
+    res.json(data.fileMeta ?? {});
+});
+
+app.post('/api/files/meta', (req, res) => {
+    const { filename, projectId } = req.body;
+    if (!filename) return res.status(400).json({ error: 'filename requerido' });
+    const data = loadData();
+    if (!data.fileMeta) data.fileMeta = {};
+    data.fileMeta[filename] = { ...(data.fileMeta[filename] ?? {}), projectId: projectId ?? null };
+    saveData(data);
+    res.json({ ok: true });
+});
+
 app.post('/api/unlock', (req, res) => {
     const { layer, user } = req.body;
     if (layerLocks[layer] && layerLocks[layer].user === user) {
@@ -120,6 +181,17 @@ app.post('/api/sync', upload.single('file'), async (req, res) => {
             filename: file.originalname,
             timestamp: new Date().toISOString()
         };
+
+        // Persist file metadata
+        const appData = loadData();
+        if (!appData.fileMeta) appData.fileMeta = {};
+        appData.fileMeta[file.originalname] = {
+            uploadedBy: user || "Usuario Desconocido",
+            uploadedAt: syncEntry.timestamp,
+            layer: layer || null,
+            projectId: req.body.projectId || (appData.fileMeta[file.originalname]?.projectId ?? null)
+        };
+        saveData(appData);
 
         syncHistory.unshift(syncEntry);
         if (syncHistory.length > 50) syncHistory.pop();
