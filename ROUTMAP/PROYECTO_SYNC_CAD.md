@@ -9,44 +9,84 @@ Eliminar el caos de versiones en equipos de arquitectura e ingeniería, permitie
 
 ---
 
-## 2. Estado Actual (Fase 1: Infraestructura y Multi-Versión)
-En esta fase estamos estableciendo los cimientos técnicos para asegurar que el plugin funcione en cualquier entorno profesional.
+## 2. Estado Actual (Fase 1: Infraestructura Completa)
 
 ### Hitos Alcanzados:
-- **Estrategia Multi-Target:** Soporte para AutoCAD 2022 (.NET 4.8), 2025 (.NET 8) y 2027 (.NET 10).
-- **Compilación Híbrida:** Uso de NuGet para independencia de versiones instaladas.
-- **Instalador Automático:** Creación de un `.exe` que despliega el plugin sin configuración manual.
-- **Estructura Bundle:** Implementación del estándar *Autoloader* de Autodesk.
+- **Multi-Versión:** Soporte para AutoCAD 2022 (.NET 4.8), 2025 (.NET 8) y 2027 (.NET 10).
+- **Compilación en la Nube (CI/CD):** GitHub Actions compila las 3 versiones automáticamente.
+- **Instalador Inteligente:** `InstalarCadSync.exe` con menú interactivo, desinstalación, y registro en Panel de Control de Windows.
+- **Auto-Update OTA:** El plugin verifica actualizaciones desde GitHub Releases y se actualiza solo al cerrar AutoCAD.
+- **GitHub Releases:** Publicación automática de paquetes descargables con un simple `git tag`.
+- **Estructura Bundle:** Estándar *Autoloader* de Autodesk para carga automática del plugin.
+
+### Arquitectura de Distribución:
+
+```text
+Desarrollador                          Usuario Final
+─────────────                          ─────────────
+git tag v1.1.0                         Abre AutoCAD
+     │                                      │
+     ▼                                      ▼
+GitHub Actions                         AutoUpdater.cs
+  ├── Compila 2022 (MSBuild)             ├── Lee version.json de GitHub
+  ├── Compila 2025 (dotnet)              ├── Compara versión local vs remota
+  ├── Compila 2027 (dotnet)              ├── Descarga ZIP si hay nueva versión
+  ├── Empaqueta ZIP                      ├── Lanza InstalarCadSync.exe --update
+  └── Crea GitHub Release               └── Al cerrar AutoCAD → se actualiza
+```
+
+### Archivos Clave:
+
+| Archivo | Propósito |
+|---------|-----------|
+| `version.json` | Fuente de verdad para versiones (leído desde GitHub raw) |
+| `plugin/AutoUpdater.cs` | Verificador silencioso de actualizaciones OTA |
+| `plugin/CadSyncInstaller/Program.cs` | Gestor: instalar / desinstalar / actualizar |
+| `plugin/CadSyncPlugin.2022.csproj` | Proyecto aislado para la compilación legacy (net48) |
+| `plugin/CadSyncPlugin.csproj` | Proyecto moderno (net8.0 + net10.0) |
+| `.github/workflows/build-plugin.yml` | Pipeline CI/CD con Release automático |
+| `plugin/build_release.bat` | Script de compilación local (2022 + 2025) |
 
 ---
 
 ## 3. Próximos Pasos (Fase 2: Sincronización Avanzada)
-Una vez estabilizada la instalación, el foco pasará a la funcionalidad estratégica:
 
 ### 3.1 Sincronización por Deltas
-- En lugar de subir el archivo completo, el plugin detectará y subirá solo las entidades modificadas (vía DXF).
-- Reducción drástica del ancho de banda y tiempos de espera.
+- Subir solo las entidades modificadas (vía DXF) en lugar del archivo completo.
 
 ### 3.2 Bloqueo de Capas (Layer Locking)
-- Implementación de un sistema de "Dueños de Capas".
-- Si un usuario está editando la capa de "INSTALACIONES", el servidor la bloquea para los demás para evitar conflictos.
+- Sistema de "Dueños de Capas" con bloqueo automático vía servidor.
 
 ### 3.3 Visualizador Web en Tiempo Real
-- Los cambios realizados en AutoCAD se reflejarán en un navegador mediante un `dxf-viewer`.
-- Posibilidad de hacer comentarios y marcas (markups) desde la web que lleguen al AutoCAD.
+- Cambios reflejados en navegador mediante `dxf-viewer`.
+- Posibilidad de comentarios y marcas desde la web.
 
 ---
 
-## 4. Desafíos Técnicos Resueltos/En Curso
-- **Compatibilidad de SDKs:** Resolución de conflictos entre el nuevo SDK de .NET 10 y los requerimientos de .NET 4.8 (WPF) para versiones antiguas.
-- **Integración con Google Drive:** Manejo de credenciales y permisos de múltiples estudios de arquitectura.
-- **Comunicación en Tiempo Real:** Uso de WebSockets para notificar cambios entre usuarios instantáneamente.
+## 4. Desafíos Técnicos Resueltos
+
+| Desafío | Solución |
+|---------|----------|
+| SDK .NET 10 rompe compilación net48 (bug MC1000) | Proyecto aislado `CadSyncPlugin.2022.csproj` + MSBuild clásico en CI |
+| Sintaxis C# 8 incompatible con net48 | `[..8]` → `.Substring(0, 8)` + `<LangVersion>latest</LangVersion>` |
+| Archivos XAML generados causan duplicados | Exclusiones explícitas `<Compile Remove="obj\**"/>` en .csproj |
+| Auto-update bloqueado por AutoCAD (File Lock) | Patrón "Baton Relay": EXE externo espera cierre de `acad.exe` |
+| Instalación sin permisos de admin | Registro en `HKCU` (usuario actual) en vez de `HKLM` |
 
 ---
 
-## 5. Distribución
-El producto final se entrega como un paquete de instalación sencillo:
-- `InstalarCadSync.exe` + `CadSync.bundle`.
+## 5. Cómo Publicar una Nueva Versión
+
+```bash
+# 1. Editar version.json con la nueva versión y notas
+# 2. Commit y tag
+git commit -am "release: v1.1.0"
+git tag v1.1.0
+git push && git push --tags
+```
+
+GitHub Actions automáticamente: compila → empaqueta → publica Release.
+Los usuarios reciben la actualización al abrir AutoCAD.
 
 ---
 *Documento actualizado: 12 de Abril, 2026*
