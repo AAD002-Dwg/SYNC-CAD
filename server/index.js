@@ -6,6 +6,8 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+require('dotenv').config();
+const driveService = require('./googleDriveService');
 
 const app = express();
 const server = http.createServer(app);
@@ -53,11 +55,17 @@ let syncHistory = [];
 let layerLocks = {}; // { layerName: { user: 'name', timestamp: '...' } }
 
 // API Endpoints
-app.get('/api/files', (req, res) => {
-    const uploadPath = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadPath)) return res.json([]);
-    const files = fs.readdirSync(uploadPath).filter(f => f.endsWith('.dwg') || f.endsWith('.dxf'));
-    res.json(files);
+app.get('/api/files', async (req, res) => {
+    try {
+        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+        if (!folderId) return res.json([]);
+        const files = await driveService.listFiles(folderId);
+        // Devolvemos solo los nombres para mantener compatibilidad con el frontend actual
+        res.json(files.map(f => f.name));
+    } catch (err) {
+        console.error("Error listado Drive:", err);
+        res.status(500).json({ error: "Error al listar archivos de Drive" });
+    }
 });
 
 app.get('/api/status', (req, res) => {
@@ -89,29 +97,54 @@ app.post('/api/unlock', (req, res) => {
     res.json({ message: "Capa liberada" });
 });
 
-app.post('/api/sync', upload.single('file'), (req, res) => {
+app.post('/api/sync', upload.single('file'), async (req, res) => {
     const { user, project, layer } = req.body;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "No se subió ningún archivo" });
 
-    const syncEntry = {
-        user: user || "Usuario Desconocido",
-        project: project || "Default",
-        layer: layer || null, // Guardar la capa si es un delta
-        filename: file.originalname,
-        timestamp: new Date().toISOString()
-    };
+    try {
+        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+        if (!folderId) throw new Error("GOOGLE_DRIVE_FOLDER_ID no configurado en .env");
 
-    syncHistory.unshift(syncEntry);
-    if (syncHistory.length > 50) syncHistory.pop();
-    
-    io.emit('sync_update', syncEntry);
-    res.json({ message: "Sincronización exitosa", entry: syncEntry });
+        // Subir a Drive usando stream desde el archivo temporal de Multer
+        const fileStream = fs.createReadStream(file.path);
+        await driveService.uploadFile(file.originalname, fileStream, folderId);
+
+        // Borrar archivo temporal local
+        fs.unlinkSync(file.path);
+
+        const syncEntry = {
+            user: user || "Usuario Desconocido",
+            project: project || "Default",
+            layer: layer || null,
+            filename: file.originalname,
+            timestamp: new Date().toISOString()
+        };
+
+        syncHistory.unshift(syncEntry);
+        if (syncHistory.length > 50) syncHistory.pop();
+        
+        io.emit('sync_update', syncEntry);
+        res.json({ message: "Sincronización con Drive exitosa", entry: syncEntry });
+    } catch (err) {
+        console.error("Error Sync Drive:", err);
+        res.status(500).json({ error: "Error al sincronizar con Google Drive" });
+    }
 });
 
-app.get('/api/download/:filename', (req, res) => {
-    const filePath = path.join(__dirname, 'uploads', req.params.filename);
-    fs.existsSync(filePath) ? res.download(filePath) : res.status(404).json({ error: "Archivo no encontrado" });
+app.get('/api/download/:filename', async (req, res) => {
+    try {
+        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+        const filename = req.params.filename;
+        const stream = await driveService.downloadFile(filename, folderId);
+        
+        res.setHeader('Content-disposition', 'attachment; filename=' + filename);
+        res.setHeader('Content-type', 'application/octet-stream');
+        stream.pipe(res);
+    } catch (err) {
+        console.error("Error descarga Drive:", err);
+        res.status(404).json({ error: "Archivo no encontrado en Drive" });
+    }
 });
 
 // Catch-all para el SPA de React
