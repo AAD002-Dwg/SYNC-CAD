@@ -31,4 +31,10 @@
     <PackageReference Include="SocketIOClient" Version="3.1.1" />
     <PackageReference Include="SocketIOClient.Newtonsoft.Json" Version="3.0.7" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="CadSyncInstaller\**" />
+    <EmbeddedResource Remove="CadSyncInstaller\**" />
+    <None Remove="CadSyncInstaller\**" />
+  </ItemGroup>
 </Project>
