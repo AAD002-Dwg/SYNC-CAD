@@ -9,18 +9,18 @@
     <!-- Soporte para AutoCAD 2022 (Era R24) -->
     <Components>
         <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R24.0" SeriesMax="R24.3" />
-        <ComponentEntry ModuleName="./Contents/2022/CadSyncPlugin.dll" AppType="dotNet" />
+        <ComponentEntry AppName="CadSyncPlugin2022" ModuleName="./Contents/2022/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
     </Components>
 
     <!-- Soporte para AutoCAD 2025 (Era R25 - .NET 8) -->
     <Components>
         <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R25.0" SeriesMax="R25.3" />
-        <ComponentEntry ModuleName="./Contents/2025/CadSyncPlugin.dll" AppType="dotNet" />
+        <ComponentEntry AppName="CadSyncPlugin2025" ModuleName="./Contents/2025/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
     </Components>
 
     <!-- Soporte para AutoCAD 2027 (Era R26 - .NET 10) -->
     <Components>
         <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R26.0" SeriesMax="R26.0" />
-        <ComponentEntry ModuleName="./Contents/2027/CadSyncPlugin.dll" AppType="dotNet" />
+        <ComponentEntry AppName="CadSyncPlugin2027" ModuleName="./Contents/2027/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
     </Components>
 </ApplicationPackage>
