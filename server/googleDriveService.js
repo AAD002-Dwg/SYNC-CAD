@@ -107,10 +107,11 @@ async function downloadFile(filename, folderId) {
     }
 
     console.log(`[DRIVE] Descargando por ID directo: ${file.name} (ID: ${file.id})`);
-    return drive.files.get(
+    const response = await drive.files.get(
         { fileId: file.id, alt: 'media' },
         { responseType: 'stream' }
     );
+    return response.data;
 }
 
 /**

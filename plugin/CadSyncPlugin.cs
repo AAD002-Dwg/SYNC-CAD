@@ -23,6 +23,8 @@ namespace CadSyncPlugin
         public string ServerUrl { get; set; } = "http://localhost:3001";
         public string LastUser { get; set; } = Environment.UserName;
         public string LastLayer { get; set; } = "";
+        public bool AutoPush { get; set; } = false;
+        public bool AutoPull { get; set; } = false;
     }
 
     public class PluginMain : IExtensionApplication
@@ -35,8 +37,32 @@ namespace CadSyncPlugin
         {
             try {
                 Application.Idle += (s, e) => ShowPalette();
+                Application.DocumentManager.DocumentActivated += (s, e) => RegisterDocEvents(e.Document);
+                if (Application.DocumentManager.MdiActiveDocument != null) 
+                    RegisterDocEvents(Application.DocumentManager.MdiActiveDocument);
+
                 _ = ConnectSocket();
             } catch { }
+        }
+
+        private void RegisterDocEvents(Document doc)
+        {
+            if (doc == null) return;
+            doc.CommandEnded -= Doc_CommandEnded;
+            doc.CommandEnded += Doc_CommandEnded;
+        }
+
+        private async void Doc_CommandEnded(object sender, CommandEventArgs e)
+        {
+            if (!Commands.GetAutoPush()) return;
+            
+            // Lista de comandos que NO disparan subida (para evitar spam)
+            var ignored = new List<string> { "CADSYNC", "SAVE", "QSAVE", "SAVEAS", "GRIP_STRETCH" };
+            if (ignored.Contains(e.GlobalCommandName.ToUpper())) return;
+
+            Document doc = sender as Document;
+            await Task.Delay(2000); // Debounce de 2 segundos
+            _ = Commands.ExecutePushDelta(doc, true);
         }
 
         private async Task ConnectSocket()
@@ -50,8 +76,25 @@ namespace CadSyncPlugin
                 Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n[CADSYNC] Actualización de bloqueos recibida.");
             });
 
-            _socket.On("sync_update", response => {
+            _socket.On("sync_update", async response => {
                 if (MyControl != null) _ = MyControl.RefreshFiles();
+
+                if (Commands.GetAutoPull()) {
+                    try {
+                        var data = response.GetValue<dynamic>();
+                        string layer = data?.layer?.ToString();
+                        if (!string.IsNullOrEmpty(layer)) {
+                            // No bajar nuestra propia capa si acabamos de subirla
+                            if (layer.ToUpper() == Commands.GetLastLayer().ToUpper()) return;
+                            
+                            Document doc = Application.DocumentManager.MdiActiveDocument;
+                            doc.Editor.WriteMessage($"\n[CADSYNC] Auto-Descarga detectada para capa: {layer}");
+                            await Commands.ExecuteMergeDelta(doc, layer);
+                        }
+                    } catch { 
+                        // Si falla el parseo, al menos refrescamos lista
+                    }
+                }
             });
 
             try { await _socket.ConnectAsync(); } catch { }
@@ -82,6 +125,11 @@ namespace CadSyncPlugin
 
         static Commands() { LoadConfig(); }
         public static string GetServerUrl() => _config.ServerUrl;
+        public static string GetLastLayer() => _config.LastLayer;
+        public static bool GetAutoPush() => _config.AutoPush;
+        public static void SetAutoPush(bool val) { _config.AutoPush = val; SaveConfig(); }
+        public static bool GetAutoPull() => _config.AutoPull;
+        public static void SetAutoPull(bool val) { _config.AutoPull = val; SaveConfig(); }
 
         private static void LoadConfig()
         {
@@ -115,6 +163,7 @@ namespace CadSyncPlugin
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             PromptStringOptions opts = new PromptStringOptions("");
+            opts.AllowSpaces = true;
             PromptResult res = doc.Editor.GetString(opts);
             if (res.Status == PromptStatus.OK) {
                 _config.LastLayer = res.StringResult.ToUpper();
@@ -124,13 +173,30 @@ namespace CadSyncPlugin
 
         private static async Task ExecuteReserve(Document doc, string layer)
         {
+            // 0. Asegurar que la capa existe localmente
+            Database db = doc.Database;
+            using (doc.LockDocument())
+            using (var tr = db.TransactionManager.StartTransaction()) {
+                LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+                if (!lt.Has(layer)) {
+                    lt.UpgradeOpen();
+                    LayerTableRecord ltr = new LayerTableRecord();
+                    ltr.Name = layer;
+                    ltr.Color = Autodesk.AutoCAD.Colors.Color.FromColorIndex(Autodesk.AutoCAD.Colors.ColorMethod.ByAci, 4); // Cyan por defecto
+                    lt.Add(ltr);
+                    tr.AddNewlyCreatedDBObject(ltr, true);
+                }
+                db.Clayer = lt[layer]; // Activar la capa
+                tr.Commit();
+            }
+
             var data = new { layer, user = _config.LastUser };
             var content = new StringContent(JsonConvert.SerializeObject(data), Encoding.UTF8, "application/json");
             try {
                 var response = await client.PostAsync($"{_config.ServerUrl}/api/lock", content);
                 if (response.IsSuccessStatusCode) {
                     ApplyLayerLocks(doc, new List<string> { layer });
-                    if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Reservada: {layer}");
+                    if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Reservada y activada: {layer}");
                 }
             } catch { }
         }
@@ -153,46 +219,74 @@ namespace CadSyncPlugin
         [CommandMethod("CADSYNC_PUSH_DELTA", CommandFlags.Session)]
         public async void CadSyncPushDelta()
         {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            if (string.IsNullOrEmpty(_config.LastLayer)) {
-                Application.ShowAlertDialog("No tienes ninguna capa reservada para subir delta.");
-                return;
-            }
+            await ExecutePushDelta(Application.DocumentManager.MdiActiveDocument, false);
+        }
+
+        public static async Task ExecutePushDelta(Document doc, bool isAuto)
+        {
+            if (string.IsNullOrEmpty(_config.LastLayer)) return;
 
             try {
-                Database db = doc.Database;
-                ObjectIdCollection ids = new ObjectIdCollection();
-                using (var tr = db.TransactionManager.StartTransaction()) {
-                    BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-                    BlockTableRecord ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-                    foreach (ObjectId id in ms) {
-                        Entity ent = (Entity)tr.GetObject(id, OpenMode.ForRead);
-                        if (ent.Layer.ToUpper() == _config.LastLayer) ids.Add(id);
+                using (doc.LockDocument()) {
+                    Database db = doc.Database;
+                    ObjectIdCollection ids = new ObjectIdCollection();
+                    using (var tr = db.TransactionManager.StartTransaction()) {
+                        BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                        BlockTableRecord ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                        foreach (ObjectId id in ms) {
+                            Entity ent = (Entity)tr.GetObject(id, OpenMode.ForRead);
+                            if (ent.Layer.ToUpper() == _config.LastLayer) ids.Add(id);
+                        }
+                        tr.Commit();
                     }
-                    tr.Commit();
-                }
 
-                if (ids.Count == 0) {
-                    Application.ShowAlertDialog($"La capa {_config.LastLayer} está vacía.");
-                    return;
-                }
+                    if (ids.Count == 0) return;
 
-                string tempPath = Path.Combine(Path.GetTempPath(), $"{_config.LastLayer}.dwg");
-                using (Database sideDb = db.Wblock(ids, Point3d.Origin)) {
-                    sideDb.SaveAs(tempPath, DwgVersion.Current);
-                }
+                    string tempPath = Path.Combine(Path.GetTempPath(), $"{_config.LastLayer}.dwg");
+                    using (Database sideDb = db.Wblock(ids, Point3d.Origin)) {
+                        sideDb.SaveAs(tempPath, DwgVersion.Current);
+                    }
 
-                using (var form = new MultipartFormDataContent()) {
-                    form.Add(new StringContent(_config.LastUser), "user");
-                    form.Add(new StringContent(_config.LastLayer), "layer");
-                    using (var stream = new FileStream(tempPath, FileMode.Open)) {
-                        form.Add(new StreamContent(stream), "file", Path.GetFileName(tempPath));
-                        await client.PostAsync($"{_config.ServerUrl}/api/sync", form);
+                    using (var form = new MultipartFormDataContent()) {
+                        form.Add(new StringContent(_config.LastUser), "user");
+                        form.Add(new StringContent(_config.LastLayer), "layer");
+                        using (var stream = new FileStream(tempPath, FileMode.Open)) {
+                            form.Add(new StreamContent(stream), "file", Path.GetFileName(tempPath));
+                            await client.PostAsync($"{_config.ServerUrl}/api/sync", form);
+                        }
                     }
                 }
-                if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog($"Delta {_config.LastLayer} subido.");
+                string msg = isAuto ? "Auto-Subida exitosa." : $"Delta {_config.LastLayer} subido.";
+                if (PluginMain.MyControl != null) PluginMain.MyControl.AddLog(msg);
             } catch (System.Exception ex) {
                 doc.Editor.WriteMessage($"\nError en Push Delta: {ex.Message}");
+            }
+        }
+
+        [CommandMethod("CADSYNC_PULL_UI", CommandFlags.Session)]
+        public void CadSyncPullUI()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            PromptStringOptions opts = new PromptStringOptions("");
+            opts.AllowSpaces = true;
+            PromptResult res = doc.Editor.GetString(opts);
+            if (res.Status == PromptStatus.OK) _ = ExecutePull(doc, res.StringResult);
+        }
+
+        private static async Task ExecutePull(Document doc, string filename)
+        {
+            try {
+                string encodedFile = Uri.EscapeDataString(filename);
+                var response = await client.GetAsync($"{_config.ServerUrl}/api/download/{encodedFile}");
+                if (response.IsSuccessStatusCode) {
+                    string localPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), filename);
+                    using (var fs = new FileStream(localPath, FileMode.Create)) await response.Content.CopyToAsync(fs);
+                    Application.ShowAlertDialog($"Descargado en Escritorio:\n{filename}");
+                } else {
+                    doc.Editor.WriteMessage($"\n[CADSYNC] Error al descargar: {response.StatusCode}");
+                }
+            } catch (System.Exception ex) {
+                doc.Editor.WriteMessage($"\n[CADSYNC] Error crítico: {ex.Message}");
             }
         }
 
@@ -201,23 +295,42 @@ namespace CadSyncPlugin
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             PromptStringOptions opts = new PromptStringOptions("");
+            opts.AllowSpaces = true;
             PromptResult res = doc.Editor.GetString(opts);
-            if (res.Status == PromptStatus.OK) _ = ExecuteMergeDelta(doc, res.StringResult.ToUpper());
+            if (res.Status == PromptStatus.OK) {
+                string cleaned = res.StringResult.Trim().Replace("\"", "");
+                _ = ExecuteMergeDelta(doc, cleaned);
+            }
         }
 
-        private static async Task ExecuteMergeDelta(Document doc, string layerName)
+        public static async Task ExecuteMergeDelta(Document doc, string layerName)
         {
             try {
                 string filename = $"{layerName}.dwg";
-                var response = await client.GetAsync($"{_config.ServerUrl}/api/download/{filename}");
-                if (!response.IsSuccessStatusCode) return;
+                string encodedFile = Uri.EscapeDataString(filename);
+                var response = await client.GetAsync($"{_config.ServerUrl}/api/download/{encodedFile}");
+                
+                if (!response.IsSuccessStatusCode) {
+                    doc.Editor.WriteMessage($"\n[CADSYNC] Error: No se pudo descargar {filename} (HTTP {response.StatusCode})");
+                    return;
+                }
 
-                string tempPath = Path.Combine(Path.GetTempPath(), $"remote_{layerName}.dwg");
+                string tempPath = Path.Combine(Path.GetTempPath(), $"remote_{Guid.NewGuid().ToString().Substring(0,8)}.dwg");
                 using (var fs = new FileStream(tempPath, FileMode.Create)) await response.Content.CopyToAsync(fs);
 
                 Database db = doc.Database;
                 using (doc.LockDocument())
                 using (var tr = db.TransactionManager.StartTransaction()) {
+                    // 0. Asegurar que la capa existe
+                    LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+                    if (!lt.Has(layerName)) {
+                        lt.UpgradeOpen();
+                        LayerTableRecord ltr = new LayerTableRecord();
+                        ltr.Name = layerName;
+                        lt.Add(ltr);
+                        tr.AddNewlyCreatedDBObject(ltr, true);
+                    }
+
                     // 1. Borrar local
                     BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
                     BlockTableRecord ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);

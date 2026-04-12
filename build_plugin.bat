@@ -2,35 +2,47 @@
 setlocal enabledelayedexpansion
 
 echo ==========================================
-echo COMPILANDO PLUGIN CAD SYNC
+echo    INSTALADOR/COMPILADOR CAD SYNC
 echo ==========================================
 
-:: Intentar detectar ruta de AutoCAD (Ajustar si es necesario)
-set "ACAD_PATH=C:\Program Files\Autodesk\AutoCAD 2025"
+echo Selecciona tu version de AutoCAD:
+echo [1] AutoCAD 2022 (.NET Framework 4.8)
+echo [2] AutoCAD 2025 (.NET 8.0)
+echo [3] AutoCAD 2027 (.NET 10.0)
+set /p "CHOICE=Opcion (1-3): "
 
-if not exist "!ACAD_PATH!\acdbmgd.dll" (
-    echo [ADVERTENCIA] No se encontro AutoCAD en !ACAD_PATH!
-    set /p "ACAD_PATH=Ingresa la ruta de tu carpeta AutoCAD (donde esta acdbmgd.dll): "
+if "%CHOICE%"=="1" (
+    set "TARGET=net48"
+    set "VERSION=2022"
+) else if "%CHOICE%"=="2" (
+    set "TARGET=net8.0-windows"
+    set "VERSION=2025"
+) else if "%CHOICE%"=="3" (
+    set "TARGET=net10.0-windows"
+    set "VERSION=2027"
+) else (
+    echo Opcion invalida.
+    pause
+    exit /b
 )
 
-:: Crear copia temporal de las referencias para facilitar el build si no estan en el PATH de MSBuild
-mkdir lib 2>nul
-copy "!ACAD_PATH!\acdbmgd.dll" "lib\"
-copy "!ACAD_PATH!\acmgd.dll" "lib\"
-copy "!ACAD_PATH!\accoremgd.dll" "lib\"
-
-echo Compilando proyecto .NET...
-dotnet build plugin/CadSyncPlugin.csproj -c Release -o ./bin
+echo.
+echo Compilando para AutoCAD %VERSION% (%TARGET%)...
+dotnet build plugin/CadSyncPlugin.csproj -c Release -f %TARGET% -o ./bin/%TARGET%
 
 if %ERRORLEVEL% EQU 0 (
+    echo.
     echo ==========================================
-    echo EXITO: Plugin compilado en ./bin/CadSyncPlugin.dll
+    echo EXITO: DLL generada en ./bin/%TARGET%/CadSyncPlugin.dll
+    echo Pasos:
+    echo 1. En AutoCAD %VERSION%, usa el comando NETLOAD.
+    echo 2. Selecciona la DLL en ./bin/%TARGET%/CadSyncPlugin.dll
+    echo 3. Usa CADSYNC_SETUP para configurar la URL de la nube.
     echo ==========================================
 ) else (
-    echo ==========================================
-    echo ERROR: No se pudo compilar el plugin. 
-    echo Mas detalles en CadSyncPlugin.csproj (verifica las rutas).
-    echo ==========================================
+    echo.
+    echo ERROR: No se pudo compilar. 
+    echo Asegurate de tener instalado el SDK de .NET correspondiente.
 )
 
 pause

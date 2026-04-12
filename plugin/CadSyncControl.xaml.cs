@@ -18,9 +18,22 @@ namespace CadSyncPlugin
         {
             InitializeComponent();
             LogList.ItemsSource = Activities;
-            UrlDisplay.Text = Commands.GetServerUrl();
             _ = RefreshFiles();
+            LoadAutoSettings();
             AddLog("Interfaz iniciada. Modo Sincronización Real activo.");
+        }
+
+        private void LoadAutoSettings()
+        {
+            ChkAutoPush.IsChecked = Commands.GetAutoPush();
+            ChkAutoPull.IsChecked = Commands.GetAutoPull();
+        }
+
+        private void ChkAuto_Changed(object sender, RoutedEventArgs e)
+        {
+            if (ChkAutoPush == null || ChkAutoPull == null) return;
+            Commands.SetAutoPush(ChkAutoPush.IsChecked == true);
+            Commands.SetAutoPull(ChkAutoPull.IsChecked == true);
         }
 
         public async Task RefreshFiles()
@@ -59,7 +72,7 @@ namespace CadSyncPlugin
             if (LayerCombo.SelectedIndex <= 0) return;
             string layerName = (LayerCombo.SelectedItem as ComboBoxItem).Content.ToString();
             AddLog($"Reservando capa: {layerName}...");
-            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_RESERVE_UI {layerName} ", true, false, false);
+            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_RESERVE_UI\n{layerName}\n", true, false, false);
             
             // Habilitar botón de Push Delta
             BtnPushDelta.IsEnabled = true;
@@ -87,9 +100,9 @@ namespace CadSyncPlugin
             // Para simplificar, si el archivo es un DWG pequeño, intentamos PULL_DELTA
             if (fileName.Contains(".dwg")) {
                 string layerPart = fileName.Replace(".dwg", "");
-                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_DELTA {layerPart} ", true, false, false);
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_DELTA\n{layerPart}\n", true, false, false);
             } else {
-                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_UI {fileName} ", true, false, false);
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_UI\n{fileName}\n", true, false, false);
             }
         }
 

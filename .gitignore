@@ -12,3 +12,7 @@ bin/
 *.pdb
 .env
 .DS_Store
+server/credentials.json
+*.zip
+*.sln
+bin_v1.2/

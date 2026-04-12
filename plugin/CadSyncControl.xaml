@@ -5,7 +5,87 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="300"
-             Background="#1e293b">
+             Background="#0f172a">
+    <UserControl.Resources>
+        <!-- Estilo Base para Textos -->
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#94a3b8"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+
+        <!-- Rediseño de ComboBox para evitar conflictos de color -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#1e293b"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" 
+                                        BorderBrush="{TemplateBinding BorderBrush}" 
+                                        Background="{TemplateBinding Background}" 
+                                        Foreground="{TemplateBinding Foreground}"
+                                        Grid.ColumnSpan="2" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                        ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Border" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition />
+                                                    <ColumnDefinition Width="20" />
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="Arrow" Grid.Column="1" Fill="#38bdf8" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M0,0 L4,4 L8,0 Z" />
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" Margin="10,3,23,3" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder" Background="#1e293b" BorderBrush="#334155" BorderThickness="1" CornerRadius="0,0,6,6"/>
+                                    <ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="true">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#334155"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#38bdf8"/>
+                                <Setter Property="Foreground" Value="#0f172a"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -18,85 +98,117 @@
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,20">
             <TextBlock Text="CAD SYNC CLOUD" FontWeight="Bold" Foreground="#38bdf8" FontSize="18"/>
-            <TextBlock Text="Fase 4 - Interfaz Activa" Foreground="#64748b" FontSize="11"/>
+            <TextBlock Text="Sincronización en Tiempo Real" Foreground="#64748b" FontSize="11"/>
         </StackPanel>
 
-        <!-- Status & Config -->
-        <Border Grid.Row="1" Background="#0f172a" CornerRadius="8" Padding="10" Margin="0,0,0,15">
+        <!-- Status -->
+        <Border Grid.Row="1" Background="#1e293b" CornerRadius="8" Padding="12" Margin="0,0,0,15" BorderBrush="#334155" BorderThickness="1">
             <StackPanel>
                 <DockPanel>
-                    <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="#22c55e" Margin="0,0,8,0"/>
-                    <TextBlock x:Name="StatusText" Text="Sincronizado" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                    <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="#22c55e" Margin="0,0,8,0">
+                        <Ellipse.Effect>
+                            <DropShadowEffect Color="#22c55e" BlurRadius="8" ShadowDepth="0"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
+                    <TextBlock x:Name="StatusText" Text="CONECTADO" Foreground="White" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
                 </DockPanel>
-                <TextBlock x:Name="UrlDisplay" Text="http://localhost:3001" Foreground="#64748b" FontSize="10" Margin="18,5,0,0"/>
             </StackPanel>
         </Border>
 
-        <!-- Layer Selector (Modelo A) -->
+        <!-- Area de Trabajo -->
         <StackPanel Grid.Row="2" Margin="0,0,0,20">
-            <TextBlock Text="ÁREA DE TRABAJO" Foreground="#94a3b8" FontSize="10" Margin="0,0,0,5"/>
-            <ComboBox x:Name="LayerCombo" SelectedIndex="0" Background="#334155" Foreground="White" BorderThickness="0" Padding="5">
+            <TextBlock Text="ÁREA DE TRABAJO" Style="{StaticResource LabelStyle}"/>
+            <ComboBox x:Name="LayerCombo" SelectedIndex="0">
                 <ComboBoxItem Content="-- SELECCIONAR CAPA --"/>
                 <ComboBoxItem Content="ARQUITECTURA"/>
                 <ComboBoxItem Content="ESTRUCTURA"/>
                 <ComboBoxItem Content="ELECTRICIDAD"/>
-                <ComboBoxItem Content="FONTANERIA"/>
+                <ComboBoxItem Content="FONTANERÍA"/>
             </ComboBox>
-            <Button x:Name="BtnReserve" Content="Reservar Capa Ahora" Margin="0,10,0,0" Background="#38bdf8" Foreground="#0f172a" FontWeight="Bold" Height="35" Click="BtnReserve_Click">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="6"/>
-                    </Style>
-                </Button.Resources>
+            <Button x:Name="BtnReserve" Content="Reservar Capa Ahora" Margin="0,10,0,0" Background="#38bdf8" Foreground="#0f172a" FontWeight="Bold" Height="38" Click="BtnReserve_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
             </Button>
+
+            <!-- Opciones de Auto-Sync -->
+            <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                <CheckBox x:Name="ChkAutoPush" Content="Auto-Subida" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="0,0,15,0" Checked="ChkAuto_Changed" Unchecked="ChkAuto_Changed"/>
+                <CheckBox x:Name="ChkAutoPull" Content="Auto-Descarga" Foreground="White" FontSize="11" VerticalAlignment="Center" Checked="ChkAuto_Changed" Unchecked="ChkAuto_Changed"/>
+            </StackPanel>
         </StackPanel>
 
-        <!-- Activity Log (Alerts) -->
-        <GroupBox Grid.Row="3" Header="ACTIVIDAD RECIENTE" Foreground="#94a3b8" BorderBrush="#334155" Padding="5">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ItemsControl x:Name="LogList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="5">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Message}" Foreground="White" FontSize="11" TextWrapping="Wrap"/>
-                                    <TextBlock Text="{Binding Time}" Foreground="#64748b" FontSize="9"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-        </GroupBox>
+        <!-- Logs -->
+        <Border Grid.Row="3" Background="#1e293b" CornerRadius="8" BorderBrush="#334155" BorderThickness="1" Padding="10">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="ACTIVIDAD RECIENTE" Style="{StaticResource LabelStyle}" Margin="0,0,0,10"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="LogList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="0,5">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Message}" Foreground="#e2e8f0" FontSize="11" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Time}" Foreground="#64748b" FontSize="9"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
 
         <!-- Actions -->
-        <StackPanel Grid.Row="4" Margin="0,10,0,0">
-            <TextBlock Text="ARCHIVOS DISPONIBLES" Foreground="#94a3b8" FontSize="10" Margin="0,0,0,5"/>
-            <ComboBox x:Name="FileCombo" Background="#334155" Foreground="White" BorderThickness="0" Padding="5" Margin="0,0,0,10">
-                <ComboBoxItem Content="Cargando archivos..."/>
-            </ComboBox>
-            <Button x:Name="BtnPull" Content="BAJAR SELECCIONADO" Height="30" Background="#475569" Foreground="White" FontWeight="SemiBold" Click="BtnPull_Click" Margin="0,0,0,10">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="6"/>
-                    </Style>
-                </Button.Resources>
-            </Button>
+        <StackPanel Grid.Row="4" Margin="0,15,0,0">
+            <TextBlock Text="ARCHIVOS EN NUBE" Style="{StaticResource LabelStyle}"/>
+            <ComboBox x:Name="FileCombo" Margin="0,0,0,12"/>
             
-            <Button x:Name="BtnPushDelta" Content="SUBIR MI CAPA" Height="35" Background="#10b981" Foreground="White" FontWeight="Bold" Click="BtnPushDelta_Click" Margin="0,0,0,10" IsEnabled="False">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="6"/>
-                    </Style>
-                </Button.Resources>
-            </Button>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                
+                <Button x:Name="BtnPull" Grid.Column="0" Content="BAJAR" Height="35" Background="#475569" Foreground="White" FontWeight="Bold" Click="BtnPull_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
 
-            <Button x:Name="BtnSync" Content="SUBIR TODO (FULL PUSH)" Height="35" Background="#818cf8" Foreground="White" FontWeight="Bold" Click="BtnSync_Click">
-                 <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="6"/>
-                    </Style>
-                </Button.Resources>
+                <Button x:Name="BtnPushDelta" Grid.Column="2" Content="SUBIR CAPA" Height="35" Background="#10b981" Foreground="White" FontWeight="Bold" Click="BtnPushDelta_Click" IsEnabled="False">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="6" x:Name="bd">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="bd" Property="Opacity" Value="0.3"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+
+            <Button x:Name="BtnSync" Content="SUBIR PROYECTO COMPLETO" Margin="0,10,0,0" Height="40" Background="#818cf8" Foreground="White" FontWeight="Bold" Click="BtnSync_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
             </Button>
         </StackPanel>
     </Grid>

@@ -1,33 +1,44 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFrameworks>net48;net8.0-windows;net10.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AssemblyName>CadSyncPlugin</AssemblyName>
     <RootNamespace>CadSyncPlugin</RootNamespace>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <!-- Rutas de AutoCAD por Versión -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+    <AcadPath>C:\Program Files\Autodesk\AutoCAD 2022</AcadPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <AcadPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025</AcadPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <AcadPath>C:\Program Files\Autodesk\AutoCAD 2027</AcadPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Referencias de AutoCAD - Ajustar estas rutas según tu instalación -->
     <Reference Include="accoremgd">
-      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\accoremgd.dll</HintPath>
+      <HintPath>$(AcadPath)\accoremgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acdbmgd">
-      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\acdbmgd.dll</HintPath>
+      <HintPath>$(AcadPath)\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acmgd">
-      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\acmgd.dll</HintPath>
+      <HintPath>$(AcadPath)\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acwindows">
-      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\acwindows.dll</HintPath>
+      <HintPath>$(AcadPath)\acwindows.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="adwindows">
-      <HintPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025\adwindows.dll</HintPath>
+      <HintPath>$(AcadPath)\adwindows.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
