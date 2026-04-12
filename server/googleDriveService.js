@@ -10,16 +10,32 @@ const CREDENTIALS_PATH = path.join(__dirname, 'credentials.json');
  * Inicializa el servicio de Google Drive usando una Service Account
  */
 async function getDriveService() {
-    if (!fs.existsSync(CREDENTIALS_PATH)) {
-        // NOTA: No lanzamos error fatal aquí para permitir que el servidor inicie
-        // pero avisará cuando se intente usar una función de Drive.
-        console.warn('⚠️ googleDriveService: ARCHIVO credentials.json NO ENCONTRADO.');
+    const credentialsEnv = process.env.GOOGLE_CREDENTIALS;
+    let auth;
+
+    if (credentialsEnv) {
+        console.log('✅ googleDriveService: Usando credenciales desde variable de entorno.');
+        try {
+            const keys = JSON.parse(credentialsEnv);
+            auth = new google.auth.GoogleAuth({
+                credentials: keys,
+                scopes: SCOPES,
+            });
+        } catch (err) {
+            console.error('❌ Error al parsear GOOGLE_CREDENTIALS:', err.message);
+            return null;
+        }
+    } else if (fs.existsSync(CREDENTIALS_PATH)) {
+        console.log('📂 googleDriveService: Usando archivo credentials.json local.');
+        auth = new google.auth.GoogleAuth({
+            keyFile: CREDENTIALS_PATH,
+            scopes: SCOPES,
+        });
+    } else {
+        console.warn('⚠️ googleDriveService: No se encontraron credenciales (ni variable ni archivo).');
         return null;
     }
-    const auth = new google.auth.GoogleAuth({
-        keyFile: CREDENTIALS_PATH,
-        scopes: SCOPES,
-    });
+
     const authClient = await auth.getClient();
     return google.drive({ version: 'v3', auth: authClient });
 }
