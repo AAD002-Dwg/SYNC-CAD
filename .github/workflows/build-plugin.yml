@@ -19,6 +19,9 @@ jobs:
         New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2025"
         New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2027"
 
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
     - name: Build AutoCAD 2022 (net48 using isolated project)
       working-directory: ./plugin
       run: |
