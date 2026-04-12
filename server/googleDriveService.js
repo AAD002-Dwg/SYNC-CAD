@@ -90,20 +90,23 @@ async function downloadFile(filename, folderId) {
     const drive = await getDriveService();
     if (!drive) throw new Error('Google Drive no configurado');
 
-    // Usamos 'contains' para que sea más flexible con espacios/caracteres
-    const searchRes = await drive.files.list({
-        q: `name contains '${filename.replace(".dwg", "")}' and '${folderId}' in parents and trashed = false`,
+    // Técnica infalible: Listar todo y buscar coincidencia en JS
+    const res = await drive.files.list({
+        q: `'${folderId}' in parents and trashed = false`,
         fields: 'files(id, name)',
     });
 
-    if (searchRes.data.files.length === 0) {
+    const targetClean = filename.toLowerCase().replace(".dwg", "").trim();
+    const file = res.data.files.find(f => {
+        const driveNameClean = f.name.toLowerCase().replace(".dwg", "").trim();
+        return driveNameClean === targetClean;
+    }) || res.data.files.find(f => f.name.toLowerCase().includes(targetClean));
+
+    if (!file) {
         throw new Error(`Archivo no encontrado en Drive: ${filename}`);
     }
 
-    // Buscamos el que mejor coincida (por si el 'contains' trajo varios)
-    const file = searchRes.data.files.find(f => f.name.toLowerCase().includes(filename.toLowerCase().replace(".dwg", ""))) || searchRes.data.files[0];
-    
-    console.log(`[DRIVE] Descargando archivo encontrado: ${file.name} (ID: ${file.id})`);
+    console.log(`[DRIVE] Descargando por ID directo: ${file.name} (ID: ${file.id})`);
     return drive.files.get(
         { fileId: file.id, alt: 'media' },
         { responseType: 'stream' }
