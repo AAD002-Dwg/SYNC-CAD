@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -15,10 +15,14 @@
     <AcadVersion>2025</AcadVersion>
     <DefineConstants>TRACE;ACAD2025</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <AcadVersion>2027</AcadVersion>
+    <DefineConstants>TRACE;ACAD2027</DefineConstants>
+  </PropertyGroup>
 
   <!-- Referencias para AutoCAD Versiones Modernas (NuGet) -->
   <!-- Esto permite la compilación en la Nube (CI/CD GitHub Actions) sin tener AutoCAD instalado -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows' Or '$(TargetFramework)' == 'net10.0-windows'">
     <PackageReference Include="AutoCAD.NET" Version="25.0.1" />
   </ItemGroup>
 

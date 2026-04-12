@@ -1,8 +1,12 @@
-name: Build CAD Sync Plugin
+name: Build & Release CadSync Plugin
 
+# ── Triggers ──────────────────────────────────────────────
+# Compila en cada push a main.
+# Crea un GitHub Release cuando se pushea un tag v* (ej: v1.0.0)
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   workflow_dispatch:
 
 jobs:
@@ -13,30 +17,34 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
+    # ── Preparación ───────────────────────────────────────
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
     - name: Ensure Target Folders Exist
       run: |
         New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2022"
         New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2025"
         New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2027"
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-
-    - name: Build AutoCAD 2022 (net48 using isolated project)
+    # ── Compilación: AutoCAD 2022 (net48, MSBuild clásico) ──
+    - name: Build AutoCAD 2022 (net48)
       working-directory: ./plugin
       run: |
-        # Restaurar paquetes NuGet y compilar usando msbuild clásico
         msbuild CadSyncPlugin.2022.csproj /t:Restore /p:Configuration=Release
         msbuild CadSyncPlugin.2022.csproj /t:Build /p:Configuration=Release /p:OutputPath="dist\CadSync.bundle\Contents\2022\\"
 
-    - name: Build AutoCAD 2025 (net8.0-windows)
+    # ── Compilación: AutoCAD 2025 (net8.0) ────────────────
+    - name: Build AutoCAD 2025 (net8.0)
       working-directory: ./plugin
       run: dotnet build CadSyncPlugin.csproj -c Release -f net8.0-windows -o "dist/CadSync.bundle/Contents/2025"
 
-    - name: Build AutoCAD 2027 (net10.0-windows)
+    # ── Compilación: AutoCAD 2027 (net10.0) ───────────────
+    - name: Build AutoCAD 2027 (net10.0)
       working-directory: ./plugin
       run: dotnet build CadSyncPlugin.csproj -c Release -f net10.0-windows -o "dist/CadSync.bundle/Contents/2027"
 
+    # ── Empaquetado ───────────────────────────────────────
     - name: Copy Package Manifest
       working-directory: ./plugin
       run: Copy-Item "PackageContents.xml" -Destination "dist/CadSync.bundle/"
@@ -44,9 +52,25 @@ jobs:
     - name: Build Standalone Installer
       working-directory: ./plugin/CadSyncInstaller
       run: dotnet publish CadSyncInstaller.csproj -c Release -o "../dist"
-      
-    - name: Upload Installer Artifact
+
+    # ── Artefactos (disponible en cada build) ─────────────
+    - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
         name: CadSyncInstaller-Release
         path: plugin/dist/
+
+    # ── Crear ZIP para Release ────────────────────────────
+    - name: Create Release ZIP
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: Compress-Archive -Path "plugin/dist/*" -DestinationPath "CadSyncInstaller.zip"
+
+    # ── GitHub Release (solo en tags v*) ──────────────────
+    - name: Publish GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: CadSyncInstaller.zip
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

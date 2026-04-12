@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("InstalarCadSync")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ccaf784a3e1b44d6a4951411269a8750a5ecf7de")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b862039e822602b0cd418cd28c8b89e968acf148")]
 [assembly: System.Reflection.AssemblyProductAttribute("InstalarCadSync")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InstalarCadSync")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

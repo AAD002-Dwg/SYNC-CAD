@@ -1,0 +1,6 @@
+{
+  "version": "1.0.0",
+  "releaseDate": "2026-04-12",
+  "releaseNotes": "Primera versión estable con soporte para AutoCAD 2022 y 2025. Sincronización bidireccional con Google Drive.",
+  "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
+}

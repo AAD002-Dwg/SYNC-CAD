@@ -70,6 +70,9 @@ namespace CadSyncPlugin
                 _retryTimer = new System.Timers.Timer(30 * 1000) { AutoReset = true };
                 _retryTimer.Elapsed += async (s, e) => await Commands.ProcessOfflineQueueAsync(_offlineQueue);
                 _retryTimer.Start();
+
+                // Auto-Update: verificar silenciosamente si hay nueva versión en GitHub
+                _ = Task.Run(() => AutoUpdater.CheckAsync());
             }
             catch { /* silencioso: AutoCAD puede no estar listo aún */ }
         }

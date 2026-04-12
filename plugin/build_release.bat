@@ -29,9 +29,9 @@ echo - AutoCAD 2022 (net48)...
 :: Aislamos el proyecto
 dotnet build CadSyncPlugin.2022.csproj -c Release -o "%CONTENTS_DIR%\2022" -p:BaseIntermediateOutputPath=obj_2022/
 
-:: --- FASE MODERNA ---
+:: --- FASE MODERNA (2025 solamente, 2027 se compila en GitHub Actions) ---
 echo - AutoCAD 2025 (net8.0)...
-dotnet build CadSyncPlugin.csproj -c Release -f net8.0-windows -o "%CONTENTS_DIR%\2025"
+dotnet build CadSyncPlugin.csproj -c Release -f net8.0-windows -o "%CONTENTS_DIR%\2025" -p:TargetFrameworks=net8.0-windows
 
 :: 3. Empaquetado
 echo [2/3] Copiando manifiesto...
