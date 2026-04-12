@@ -90,18 +90,22 @@ async function downloadFile(filename, folderId) {
     const drive = await getDriveService();
     if (!drive) throw new Error('Google Drive no configurado');
 
+    // Usamos 'contains' para que sea más flexible con espacios/caracteres
     const searchRes = await drive.files.list({
-        q: `name = '${filename}' and '${folderId}' in parents and trashed = false`,
-        fields: 'files(id)',
+        q: `name contains '${filename.replace(".dwg", "")}' and '${folderId}' in parents and trashed = false`,
+        fields: 'files(id, name)',
     });
 
     if (searchRes.data.files.length === 0) {
         throw new Error(`Archivo no encontrado en Drive: ${filename}`);
     }
 
-    const fileId = searchRes.data.files[0].id;
+    // Buscamos el que mejor coincida (por si el 'contains' trajo varios)
+    const file = searchRes.data.files.find(f => f.name.toLowerCase().includes(filename.toLowerCase().replace(".dwg", ""))) || searchRes.data.files[0];
+    
+    console.log(`[DRIVE] Descargando archivo encontrado: ${file.name} (ID: ${file.id})`);
     return drive.files.get(
-        { fileId: fileId, alt: 'media' },
+        { fileId: file.id, alt: 'media' },
         { responseType: 'stream' }
     );
 }
