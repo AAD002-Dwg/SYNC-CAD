@@ -1,32 +1,54 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Collections.ObjectModel;
 using System.Windows.Media;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace CadSyncPlugin
 {
     public partial class CadSyncControl : UserControl
     {
-        public ObservableCollection<LogEntry> Activities { get; set; } = new ObservableCollection<LogEntry>();
-        private System.Collections.Generic.List<string> _availableFiles = new System.Collections.Generic.List<string>();
+        // ── Observable Collections ────────────────────────────
+        public ObservableCollection<LogEntry>         Activities     { get; } = new();
+        public ObservableCollection<ActiveLayerEntry> ActiveLayers   { get; } = new();
+        public ObservableCollection<ConnectedUser>    ConnectedUsers { get; } = new();
 
         public CadSyncControl()
         {
             InitializeComponent();
-            LogList.ItemsSource = Activities;
+
+            // Apply saved theme before anything is rendered
+            ThemeManager.LoadSaved(this);
+            SyncThemeIcon();
+
+            LogList.ItemsSource            = Activities;
+            ActiveLayersList.ItemsSource   = ActiveLayers;
+            ConnectedUsersList.ItemsSource = ConnectedUsers;
+
+            LoadSettings();
             _ = RefreshFiles();
-            LoadAutoSettings();
-            AddLog("Interfaz iniciada. Modo Sincronización Real activo.");
+            AddLog("Plugin iniciado — Multi-Tenant + Live activo.");
         }
 
-        private void LoadAutoSettings()
+        // ── Settings ──────────────────────────────────────────
+        private void LoadSettings()
         {
-            ChkAutoPush.IsChecked = Commands.GetAutoPush();
-            ChkAutoPull.IsChecked = Commands.GetAutoPull();
+            TxtStudioKey.Text         = Commands.GetStudioKey();
+            ChkAutoPush.IsChecked     = Commands.GetAutoPush();
+            ChkAutoPull.IsChecked     = Commands.GetAutoPull();
+            ChkGhostCursors.IsChecked = Commands.GetShowGhostCursors();
+        }
+
+        private void BtnSaveKey_Click(object sender, RoutedEventArgs e)
+        {
+            var key = TxtStudioKey.Text.Trim().ToUpper();
+            Commands.SetStudioKey(key);
+            AddLog($"Studio Key guardado: {(key.Length > 0 ? key : "(vacío)")}. Reinicia AutoCAD para reconectar.");
         }
 
         private void ChkAuto_Changed(object sender, RoutedEventArgs e)
@@ -36,86 +58,249 @@ namespace CadSyncPlugin
             Commands.SetAutoPull(ChkAutoPull.IsChecked == true);
         }
 
-        public async Task RefreshFiles()
+        private void ChkGhostCursors_Changed(object sender, RoutedEventArgs e)
         {
-            try {
-                var response = await Commands.client.GetAsync($"{Commands.GetServerUrl()}/api/files");
-                if (response.IsSuccessStatusCode) {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var files = JsonConvert.DeserializeObject<System.Collections.Generic.List<string>>(json);
-                    Dispatcher.Invoke(() => {
-                        FileCombo.Items.Clear();
-                        foreach (var f in files) FileCombo.Items.Add(f);
-                        if (FileCombo.Items.Count > 0) FileCombo.SelectedIndex = 0;
-                    });
-                }
-            } catch { }
-        }
-
-        public void UpdateLocks(System.Collections.Generic.Dictionary<string, dynamic> locks)
-        {
-            foreach (var kvp in locks) {
-                AddLog($"Aviso: Capa {kvp.Key} ocupada por {kvp.Value.user}");
+            if (ChkGhostCursors == null) return;
+            bool show = ChkGhostCursors.IsChecked == true;
+            Commands.SetShowGhostCursors(show);
+            if (!show)
+            {
+                ConnectedUsers.Clear();
+                TxtNoUsers.Visibility = Visibility.Visible;
             }
         }
 
-        public void AddLog(string message)
+        // ── Theme Toggle ──────────────────────────────────────
+        private void BtnTheme_Click(object sender, RoutedEventArgs e)
         {
-            Dispatcher.Invoke(() => {
-                Activities.Insert(0, new LogEntry { Message = message, Time = DateTime.Now.ToShortTimeString() });
-                if (Activities.Count > 15) Activities.RemoveAt(15);
+            ThemeManager.Toggle(this);
+            SyncThemeIcon();
+        }
+
+        private void SyncThemeIcon()
+        {
+            // ☀ = switch to light available  |  ☾ = switch to dark available
+            ThemeIcon.Text = ThemeManager.IsDark ? "☀" : "☾";
+            BtnTheme.ToolTip = ThemeManager.IsDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro";
+        }
+
+        // ── Connection Status ─────────────────────────────────
+        public void SetConnectionStatus(bool connected)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var color = connected
+                    ? Color.FromRgb(0x4C, 0xAF, 0x50)  // #4CAF50 success
+                    : Color.FromRgb(0xF4, 0x43, 0x36);  // #F44336 error
+
+                StatusDotFill.Color  = color;
+                StatusGlow.Color     = color;
+                StatusText.Text      = connected ? "Online" : "Offline";
+                StatusText.Foreground = connected
+                    ? (Brush)Resources["SuccessColor"]
+                    : (Brush)Resources["ErrorColor"];
             });
         }
 
-        private void BtnReserve_Click(object sender, RoutedEventArgs e)
+        // ── Lock Updates ──────────────────────────────────────
+        public void UpdateLocks(Dictionary<string, LockInfo>? locks)
         {
-            if (LayerCombo.SelectedIndex <= 0) return;
-            string layerName = (LayerCombo.SelectedItem as ComboBoxItem).Content.ToString();
-            AddLog($"Reservando capa: {layerName}...");
-            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_RESERVE_UI\n{layerName}\n", true, false, false);
-            
-            // Habilitar botón de Push Delta
-            BtnPushDelta.IsEnabled = true;
-            BtnPushDelta.Content = $"SUBIR CAMBIOS: {layerName}";
+            if (locks == null) return;
+            foreach (var kvp in locks)
+            {
+                if (kvp.Value.User != Commands.GetLastUser())
+                    AddLog($"Capa bloqueada: {kvp.Key}  →  {kvp.Value.User}");
+            }
         }
 
+        // ── Plan 2: Active Layers ─────────────────────────────
+        public void RefreshActiveLayers(IEnumerable<string> layers)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ActiveLayers.Clear();
+                bool any = false;
+                foreach (var l in layers)
+                {
+                    ActiveLayers.Add(new ActiveLayerEntry { Name = l });
+                    any = true;
+                }
+                TxtNoLayers.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
+            });
+        }
+
+        public void ShowConflicts(IEnumerable<string> conflictLayers)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                foreach (var layerInfo in conflictLayers)
+                {
+                    // layerInfo format: "LAYERNAME (username)"
+                    var layerName = layerInfo.Split(' ')[0];
+                    AddLog($"⚠ Conflicto detectado: {layerInfo}");
+
+                    foreach (var entry in ActiveLayers)
+                    {
+                        if (string.Equals(entry.Name, layerName, StringComparison.OrdinalIgnoreCase))
+                            entry.IsConflict = true;
+                    }
+                }
+            });
+        }
+
+        // ── Plan 3: Connected Users ───────────────────────────
+        public void UpdateConnectedUsers(IReadOnlyDictionary<string, short> userColors)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ConnectedUsers.Clear();
+                foreach (var kvp in userColors)
+                {
+                    ConnectedUsers.Add(new ConnectedUser
+                    {
+                        Name     = kvp.Key,
+                        ColorHex = AciToWpfHex(kvp.Value)
+                    });
+                }
+                TxtNoUsers.Visibility =
+                    ConnectedUsers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            });
+        }
+
+        /// <summary>Maps AutoCAD ACI color index to a hex string usable in WPF.</summary>
+        private static string AciToWpfHex(short aci) => aci switch
+        {
+            1   => "#FF4444",
+            2   => "#FFD700",
+            3   => "#4CAF50",
+            4   => "#00BCD4",
+            5   => "#55AAFF",
+            6   => "#E040FB",
+            30  => "#FF8C00",
+            50  => "#CDDC39",
+            140 => "#7986CB",
+            200 => "#80CBC4",
+            _   => "#8A91A1"
+        };
+
+        // ── File List ─────────────────────────────────────────
+        public async Task RefreshFiles()
+        {
+            try
+            {
+                var response = await Commands.GetAsync($"{Commands.GetServerUrl()}/api/files");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json  = await response.Content.ReadAsStringAsync();
+                    var files = JsonConvert.DeserializeObject<List<string>>(json);
+                    Dispatcher.Invoke(() =>
+                    {
+                        FileCombo.Items.Clear();
+                        if (files != null)
+                            foreach (var f in files) FileCombo.Items.Add(f);
+                        if (FileCombo.Items.Count > 0) FileCombo.SelectedIndex = 0;
+                    });
+                }
+            }
+            catch { }
+        }
+
+        // ── Log ───────────────────────────────────────────────
+        public void AddLog(string message)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                Activities.Insert(0, new LogEntry
+                {
+                    Message = message,
+                    Time    = DateTime.Now.ToString("HH:mm:ss")
+                });
+                if (Activities.Count > 25) Activities.RemoveAt(25);
+            });
+        }
+
+        // ── Button Handlers ───────────────────────────────────
         private void BtnPushDelta_Click(object sender, RoutedEventArgs e)
         {
-            AddLog("Subiendo delta de mi capa...");
-            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute("CADSYNC_PUSH_DELTA ", true, false, false);
+            AddLog("Subiendo capas activas...");
+            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                .MdiActiveDocument.SendStringToExecute("CADSYNC_PUSH_DELTA ", true, false, false);
         }
 
         private void BtnPull_Click(object sender, RoutedEventArgs e)
         {
             if (FileCombo.SelectedItem == null) return;
-            string fileName = FileCombo.SelectedItem.ToString();
-            
-            if (fileName.EndsWith(".dwg") && fileName.Contains("_")) {
-                // Es un delta (ej: Proyecto_ELECTRICO.dwg) -> NO, en mi lógica es Capa.dwg
-            }
-
+            string fileName = FileCombo.SelectedItem.ToString()!;
             AddLog($"Descargando {fileName}...");
-            
-            // Si el nombre coincide con una capa conocida, tratamos de hacer MERGE
-            // Para simplificar, si el archivo es un DWG pequeño, intentamos PULL_DELTA
-            if (fileName.Contains(".dwg")) {
-                string layerPart = fileName.Replace(".dwg", "");
-                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_DELTA\n{layerPart}\n", true, false, false);
-            } else {
-                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute($"CADSYNC_PULL_UI\n{fileName}\n", true, false, false);
+
+            if (fileName.EndsWith(".dwg", StringComparison.OrdinalIgnoreCase))
+            {
+                string layer = System.IO.Path.GetFileNameWithoutExtension(fileName);
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                    .MdiActiveDocument.SendStringToExecute(
+                        $"CADSYNC_PULL_DELTA\n{layer}\n", true, false, false);
+            }
+            else
+            {
+                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                    .MdiActiveDocument.SendStringToExecute(
+                        $"CADSYNC_PULL_UI\n{fileName}\n", true, false, false);
             }
         }
 
         private void BtnSync_Click(object sender, RoutedEventArgs e)
         {
-            AddLog("Sincronizando dibujo...");
-            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument.SendStringToExecute("CADSYNC_PUSH ", true, false, false);
+            AddLog("Sincronizando proyecto completo...");
+            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                .MdiActiveDocument.SendStringToExecute("CADSYNC_PUSH ", true, false, false);
+        }
+
+        private void BtnRefreshFiles_Click(object sender, RoutedEventArgs e)
+        {
+            AddLog("Actualizando lista de archivos...");
+            _ = RefreshFiles();
         }
     }
 
+    // ── View Models ───────────────────────────────────────────
     public class LogEntry
     {
-        public string Message { get; set; }
-        public string Time { get; set; }
+        public string Message { get; set; } = "";
+        public string Time    { get; set; } = "";
+    }
+
+    public class ActiveLayerEntry : INotifyPropertyChanged
+    {
+        private bool _isConflict;
+        public string Name { get; set; } = "";
+
+        public bool IsConflict
+        {
+            get => _isConflict;
+            set { _isConflict = value; OnPropertyChanged(); OnPropertyChanged(null); }
+        }
+
+        // Dot color (raw Color for Binding to Ellipse.Fill > SolidColorBrush.Color)
+        public string StatusDotColor => IsConflict ? "#F44336" : "#4CAF50";
+
+        // Badge appearance
+        public Brush BadgeBg     => IsConflict ? Br("#200808") : Br("#0d200d");
+        public Brush BadgeBorder => IsConflict ? Br("#4d1010") : Br("#1f4d1f");
+        public Brush BadgeFg     => IsConflict ? Br("#F44336") : Br("#4CAF50");
+        public string StatusText  => IsConflict ? "CONFLICTO"  : "RESERVADA";
+
+        private static SolidColorBrush Br(string hex) =>
+            new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public class ConnectedUser
+    {
+        public string Name     { get; set; } = "";
+        /// <summary>Hex string ("#RRGGBB") for WPF Color binding.</summary>
+        public string ColorHex { get; set; } = "#8A91A1";
     }
 }

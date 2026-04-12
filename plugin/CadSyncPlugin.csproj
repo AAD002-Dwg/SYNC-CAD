@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net48;net8.0-windows;net10.0-windows</TargetFrameworks>
+    <!-- net10.0-windows requires .NET SDK 10+; build it separately when available -->
+    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -16,9 +17,9 @@
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
     <AcadPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025</AcadPath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+  <!-- <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <AcadPath>C:\Program Files\Autodesk\AutoCAD 2027</AcadPath>
-  </PropertyGroup>
+  </PropertyGroup> -->
 
   <ItemGroup>
     <Reference Include="accoremgd">
