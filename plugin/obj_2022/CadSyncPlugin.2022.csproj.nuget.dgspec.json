@@ -1,0 +1,76 @@
+{
+  "format": 1,
+  "restore": {
+    "G:\\SYNC-CAD\\plugin\\CadSyncPlugin.2022.csproj": {}
+  },
+  "projects": {
+    "G:\\SYNC-CAD\\plugin\\CadSyncPlugin.2022.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "G:\\SYNC-CAD\\plugin\\CadSyncPlugin.2022.csproj",
+        "projectName": "CadSyncPlugin",
+        "projectPath": "G:\\SYNC-CAD\\plugin\\CadSyncPlugin.2022.csproj",
+        "packagesPath": "C:\\Users\\alan0\\.nuget\\packages\\",
+        "outputPath": "G:\\SYNC-CAD\\plugin\\obj_2022/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\alan0\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net48"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net48": {
+            "targetAlias": "net48",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net48": {
+          "targetAlias": "net48",
+          "dependencies": {
+            "AutoCAD.NET": {
+              "target": "Package",
+              "version": "[24.1.0, )"
+            },
+            "AutoCAD.NET.Core": {
+              "target": "Package",
+              "version": "[24.1.0, )"
+            },
+            "AutoCAD.NET.Model": {
+              "target": "Package",
+              "version": "[24.1.0, )"
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.3, )"
+            },
+            "SocketIOClient": {
+              "target": "Package",
+              "version": "[3.1.1, )"
+            },
+            "SocketIOClient.Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[3.0.7, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.419\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

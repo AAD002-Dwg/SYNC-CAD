@@ -1,47 +1,29 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- net10.0-windows requires .NET SDK 10+; build it separately when available -->
-    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AssemblyName>CadSyncPlugin</AssemblyName>
     <RootNamespace>CadSyncPlugin</RootNamespace>
     <Platforms>x64</Platforms>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
 
-  <!-- Rutas de AutoCAD por Versión -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
-    <AcadPath>C:\Program Files\Autodesk\AutoCAD 2022</AcadPath>
-  </PropertyGroup>
+  <!-- Definición de Constantes por Versión -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
-    <AcadPath>C:\Program Files\Autodesk CAD1\AutoCAD 2025</AcadPath>
+    <AcadVersion>2025</AcadVersion>
+    <DefineConstants>TRACE;ACAD2025</DefineConstants>
   </PropertyGroup>
-  <!-- <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
-    <AcadPath>C:\Program Files\Autodesk\AutoCAD 2027</AcadPath>
-  </PropertyGroup> -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <AcadVersion>2027</AcadVersion>
+    <DefineConstants>TRACE;ACAD2027</DefineConstants>
+  </PropertyGroup>
 
-  <ItemGroup>
-    <Reference Include="accoremgd">
-      <HintPath>$(AcadPath)\accoremgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="acdbmgd">
-      <HintPath>$(AcadPath)\acdbmgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="acmgd">
-      <HintPath>$(AcadPath)\acmgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="acwindows">
-      <HintPath>$(AcadPath)\acwindows.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="adwindows">
-      <HintPath>$(AcadPath)\adwindows.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
+  <!-- Referencias para AutoCAD Versiones Modernas (NuGet) -->
+  <!-- Esto permite la compilación en la Nube (CI/CD GitHub Actions) sin tener AutoCAD instalado -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows' Or '$(TargetFramework)' == 'net10.0-windows'">
+    <PackageReference Include="AutoCAD.NET" Version="25.0.0" />
   </ItemGroup>
 
   <ItemGroup>

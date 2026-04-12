@@ -1,0 +1,48 @@
+name: Build CAD Sync Plugin
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Ensure Target Folders Exist
+      run: |
+        New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2022"
+        New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2025"
+        New-Item -ItemType Directory -Force -Path "plugin/dist/CadSync.bundle/Contents/2027"
+
+    - name: Build AutoCAD 2022 (net48 using isolated project)
+      working-directory: ./plugin
+      run: |
+        # Usamos msbuild clásico de Windows para evitar el bug SDK MC1000 de las herramientas .NET Core
+        msbuild CadSyncPlugin.2022.csproj /p:Configuration=Release /p:OutputPath="dist\CadSync.bundle\Contents\2022\\" /t:Build
+
+    - name: Build AutoCAD 2025 (net8.0-windows)
+      working-directory: ./plugin
+      run: dotnet build CadSyncPlugin.csproj -c Release -f net8.0-windows -o "dist/CadSync.bundle/Contents/2025"
+
+    - name: Build AutoCAD 2027 (net10.0-windows)
+      working-directory: ./plugin
+      run: dotnet build CadSyncPlugin.csproj -c Release -f net10.0-windows -o "dist/CadSync.bundle/Contents/2027"
+
+    - name: Copy Package Manifest
+      working-directory: ./plugin
+      run: Copy-Item "PackageContents.xml" -Destination "dist/CadSync.bundle/"
+
+    - name: Build Standalone Installer
+      working-directory: ./plugin/CadSyncInstaller
+      run: dotnet publish CadSyncInstaller.csproj -c Release -o "../dist"
+      
+    - name: Upload Installer Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: CadSyncInstaller-Release
+        path: plugin/dist/

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AssemblyName>CadSyncPlugin</AssemblyName>
+    <RootNamespace>CadSyncPlugin</RootNamespace>
+    <Platforms>x64</Platforms>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <DefineConstants>TRACE;ACAD2022</DefineConstants>
+    <!-- Solución para bug MC1000 en .NET 10 SDK al compilar WPF para .NET Framework -->
+    <EnableReflectionMetadataAssemblyResolver>true</EnableReflectionMetadataAssemblyResolver>
+  </PropertyGroup>
+
+  <!-- Referencias para AutoCAD 2022 (Vía NuGet) -->
+  <ItemGroup>
+    <PackageReference Include="AutoCAD.NET" Version="24.1.0" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="24.1.0" />
+    <PackageReference Include="AutoCAD.NET.Model" Version="24.1.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="SocketIOClient" Version="3.1.1" />
+    <PackageReference Include="SocketIOClient.Newtonsoft.Json" Version="3.0.7" />
+  </ItemGroup>
+</Project>

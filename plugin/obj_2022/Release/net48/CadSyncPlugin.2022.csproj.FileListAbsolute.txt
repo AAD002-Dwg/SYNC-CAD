@@ -1,0 +1,1 @@
+G:\SYNC-CAD\plugin\obj_2022\Release\net48\CadSyncPlugin.2022.csproj.AssemblyReference.cache

@@ -16,7 +16,7 @@ namespace CadSyncPlugin
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private readonly object _lock = new object();
-        private Timer? _debounceTimer;
+        private System.Timers.Timer? _debounceTimer;
         private Database? _attachedDb;
         private bool _disposed;
 

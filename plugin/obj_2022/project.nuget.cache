@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "dgSpecHash": "kkG6nG1denw=",
+  "success": true,
+  "projectFilePath": "G:\\SYNC-CAD\\plugin\\CadSyncPlugin.2022.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\alan0\\.nuget\\packages\\autocad.net\\24.1.51000\\autocad.net.24.1.51000.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\autocad.net.core\\24.1.51000\\autocad.net.core.24.1.51000.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\autocad.net.model\\24.1.51000\\autocad.net.model.24.1.51000.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\7.0.0\\microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\socketio.core\\3.1.1\\socketio.core.3.1.1.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\socketio.serializer.core\\3.1.1\\socketio.serializer.core.3.1.1.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\socketio.serializer.systemtextjson\\3.1.1\\socketio.serializer.systemtextjson.3.1.1.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\socketioclient\\3.1.1\\socketioclient.3.1.1.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\socketioclient.newtonsoft.json\\3.0.7\\socketioclient.newtonsoft.json.3.0.7.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.collections\\4.3.0\\system.collections.4.3.0.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.memory\\4.5.5\\system.memory.4.5.5.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.numerics.vectors\\4.5.0\\system.numerics.vectors.4.5.0.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.text.encodings.web\\7.0.0\\system.text.encodings.web.7.0.0.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.text.json\\7.0.3\\system.text.json.7.0.3.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.threading.tasks.extensions\\4.5.4\\system.threading.tasks.extensions.4.5.4.nupkg.sha512",
+    "C:\\Users\\alan0\\.nuget\\packages\\system.valuetuple\\4.5.0\\system.valuetuple.4.5.0.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "CadSyncPlugin depende de AutoCAD.NET (>= 24.1.0), pero no se encontró AutoCAD.NET 24.1.0. Se resolvió una mejor coincidencia aproximada de AutoCAD.NET 24.1.51000.",
+      "libraryId": "AutoCAD.NET",
+      "targetGraphs": [
+        ".NETFramework,Version=v4.8"
+      ]
+    },
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "CadSyncPlugin depende de AutoCAD.NET.Core (>= 24.1.0), pero no se encontró AutoCAD.NET.Core 24.1.0. Se resolvió una mejor coincidencia aproximada de AutoCAD.NET.Core 24.1.51000.",
+      "libraryId": "AutoCAD.NET.Core",
+      "targetGraphs": [
+        ".NETFramework,Version=v4.8"
+      ]
+    },
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "CadSyncPlugin depende de AutoCAD.NET.Model (>= 24.1.0), pero no se encontró AutoCAD.NET.Model 24.1.0. Se resolvió una mejor coincidencia aproximada de AutoCAD.NET.Model 24.1.51000.",
+      "libraryId": "AutoCAD.NET.Model",
+      "targetGraphs": [
+        ".NETFramework,Version=v4.8"
+      ]
+    }
+  ]
+}
