@@ -180,7 +180,7 @@ namespace CadSyncPlugin
                         MyControl?.AddLog($"[DEBUG-CURSOR] Socket NO conectado — cursor no enviado");
                 }
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 MyControl?.AddLog($"[DEBUG-CURSOR] Error al emitir: {ex.Message}");
             }
@@ -282,13 +282,13 @@ namespace CadSyncPlugin
                             _ghostManager.UpdateCursor(data.User, pt);
                             MyControl?.UpdateConnectedUsers(_ghostManager.GetUserColors());
                         }
-                        catch (Exception ex)
+                        catch (System.Exception ex)
                         {
                             MyControl?.AddLog($"[DEBUG-CURSOR] Error en UpdateCursor: {ex.Message}");
                         }
                     }));
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
                     System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                         MyControl?.AddLog($"[DEBUG-CURSOR] Error al procesar cursor_move: {ex.Message}")));
