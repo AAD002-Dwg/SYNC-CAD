@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.3",
   "releaseDate": "2026-04-12",
-  "releaseNotes": "Hotfix: Solución al error de carga automática en el inicio de AutoCAD (AutoLoader LoadOnStartup).",
+  "releaseNotes": "Hotfix v1.0.3: Migración a delegación OAuth2 para Drive evitando errores de limitación de cuota, reparación de auto-descarga delegando al main thread, y logs nativos para cursores interactivos.",
   "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
 }

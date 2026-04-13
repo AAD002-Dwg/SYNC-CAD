@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ApplicationPackage SchemaVersion="1.0" 
-                    AppVersion="1.0.0" 
+                    AppVersion="1.0.3" 
                     ProductCode="{BB0B1234-5678-4CDE-9ABC-FEDCBA098765}" 
                     Name="CadSync Plugin" 
                     Description="Sincronización bidireccional con plataforma web">
