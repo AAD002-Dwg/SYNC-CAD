@@ -1,6 +1,6 @@
 {
-  "version": "1.0.4",
+  "version": "1.0.5",
   "releaseDate": "2026-04-12",
-  "releaseNotes": "Estabilización v1.0.4: Añadido seguimiento de usuario por coordenadas, depuración visual de versiones, limpieza de huellas y parche Autoloader para 2025.",
+  "releaseNotes": "Hotfix v1.0.5: Reparado bug interno de AutoCAD 2025 que impedía actualizar la interfaz (hilo de Dispatcher) durante la desconexión o conexión del ghost cursor.",
   "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
 }

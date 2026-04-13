@@ -222,8 +222,8 @@ namespace CadSyncPlugin
 
             _socket.On("sync_update", response =>
             {
-                // Refrescar lista de archivos en el UI (thread-safe via Dispatcher)
-                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                // Refrescar lista de archivos en el UI (thread-safe)
+                MyControl?.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     _ = MyControl?.RefreshFiles();
                 }));
@@ -267,7 +267,7 @@ namespace CadSyncPlugin
                     }
 
                     var pt = new Point3d(data.X, data.Y, data.Z);
-                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                    MyControl?.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         try
                         {
@@ -282,7 +282,7 @@ namespace CadSyncPlugin
                 }
                 catch (System.Exception ex)
                 {
-                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                    MyControl?.Dispatcher.BeginInvoke(new Action(() =>
                         MyControl?.AddLog($"[DEBUG-CURSOR] Error al procesar cursor_move: {ex.Message}")));
                 }
             });
@@ -294,7 +294,7 @@ namespace CadSyncPlugin
                     var data = response.GetValue<CursorRemovePayload>();
                     if (data?.User == null) return;
 
-                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                    MyControl?.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         MyControl?.AddLog($"[DEBUG-CURSOR] Usuario desconectado: {data.User}");
                         _ghostManager.RemoveCursor(data.User);
@@ -310,10 +310,10 @@ namespace CadSyncPlugin
             }
             catch (System.Exception ex)
             { 
-                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                MyControl?.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     MyControl?.SetConnectionStatus(false);
-                    MyControl?.AddLog($"[Socket] No se pudo conectar al servidor local/remoto.");
+                    MyControl?.AddLog($"Error Socket: {ex.Message}");
                 }));
             }
         }

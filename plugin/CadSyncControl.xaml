@@ -283,7 +283,7 @@
                     <Border Margin="6,0,0,0" CornerRadius="3" Padding="5,2"
                             Background="{DynamicResource AccentSubtle}"
                             BorderBrush="{DynamicResource AccentColor}" BorderThickness="0.5">
-                        <TextBlock Text="v1.0.4" FontSize="9" FontFamily="Consolas"
+                        <TextBlock Text="v1.0.5" FontSize="9" FontFamily="Consolas"
                                    Foreground="{DynamicResource AccentColor}"/>
                     </Border>
                 </StackPanel>
