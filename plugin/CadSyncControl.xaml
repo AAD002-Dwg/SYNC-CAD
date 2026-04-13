@@ -283,7 +283,7 @@
                     <Border Margin="6,0,0,0" CornerRadius="3" Padding="5,2"
                             Background="{DynamicResource AccentSubtle}"
                             BorderBrush="{DynamicResource AccentColor}" BorderThickness="0.5">
-                        <TextBlock Text="v1.2" FontSize="9" FontFamily="Consolas"
+                        <TextBlock Text="v1.0.4" FontSize="9" FontFamily="Consolas"
                                    Foreground="{DynamicResource AccentColor}"/>
                     </Border>
                 </StackPanel>
@@ -445,18 +445,27 @@
                         <ItemsControl x:Name="ConnectedUsersList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                                                 Margin="0,0,8,0">
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0">
                                             <Ellipse.Fill>
                                                 <SolidColorBrush Color="{Binding ColorHex}"/>
                                             </Ellipse.Fill>
                                         </Ellipse>
-                                        <TextBlock Text="{Binding Name}"
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
                                                    FontSize="12"
                                                    Foreground="{DynamicResource TextMain}"
                                                    VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                        <Button Grid.Column="2" Tag="{Binding Name}" Click="BtnJumpToUser_Click" 
+                                                Style="{StaticResource GhostBtn}" Padding="2" Width="22" Height="22" 
+                                                ToolTip="Centrar vista en el cursor de este usuario">
+                                            <TextBlock Text="📍" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
+                                    </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

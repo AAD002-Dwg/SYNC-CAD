@@ -31,8 +31,9 @@ namespace CadSyncPlugin
             ConnectedUsersList.ItemsSource = ConnectedUsers;
 
             LoadSettings();
+            SetConnectionStatus(false);
             _ = RefreshFiles();
-            AddLog("Plugin iniciado — Multi-Tenant + Live activo.");
+            AddLog("Plugin iniciado — Conectando...");
         }
 
         // ── Settings ──────────────────────────────────────────
@@ -201,8 +202,20 @@ namespace CadSyncPlugin
                         if (FileCombo.Items.Count > 0) FileCombo.SelectedIndex = 0;
                     });
                 }
+                else
+                {
+                    if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                        AddLog("Error 403: Studio Key rechazada por el servidor.");
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                        AddLog("Error 401: Falta Studio Key requerida.");
+                    else
+                        AddLog($"Error HTTP {response.StatusCode} al cargar archivos.");
+                }
             }
-            catch { }
+            catch (Exception ex)
+            { 
+                AddLog("Error de red: No se pudo contactar al servidor.");
+            }
         }
 
         // ── Log ───────────────────────────────────────────────
@@ -225,6 +238,26 @@ namespace CadSyncPlugin
             AddLog("Subiendo capas activas...");
             Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
                 .MdiActiveDocument.SendStringToExecute("CADSYNC_PUSH_DELTA ", true, false, false);
+        }
+
+        private void BtnJumpToUser_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string user)
+            {
+                var pos = PluginMain.GetGhostManager().GetLastPosition(user);
+                if (pos.HasValue)
+                {
+                    double x = pos.Value.X;
+                    double y = pos.Value.Y;
+                    string cmd = $"'_ZOOM _C {x},{y} 100\n";
+                    Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                        .MdiActiveDocument.SendStringToExecute(cmd, true, false, false);
+                }
+                else
+                {
+                    AddLog($"Coord. no disponibles para {user}.");
+                }
+            }
         }
 
         private void BtnPull_Click(object sender, RoutedEventArgs e)

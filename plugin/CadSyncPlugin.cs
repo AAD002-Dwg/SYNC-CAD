@@ -82,6 +82,7 @@ namespace CadSyncPlugin
         }
 
         public static OfflineQueue GetOfflineQueue() => _offlineQueue;
+        public static GhostCursorManager GetGhostManager() => _ghostManager;
 
         // ── Document Events ───────────────────────────────────
         private void AttachDocEvents(Document? doc)
@@ -170,8 +171,6 @@ namespace CadSyncPlugin
                 {
                     await _socket.EmitAsync("cursor_move", new { x, y, z });
                     _cursorEmitCount++;
-                    if (_cursorEmitCount <= 3 || _cursorEmitCount % 200 == 0)
-                        MyControl?.AddLog($"[DEBUG-CURSOR] Enviado #{_cursorEmitCount}: ({x:F1}, {y:F1}, {z:F1})");
                 }
                 else
                 {
@@ -264,15 +263,8 @@ namespace CadSyncPlugin
                     var data = response.GetValue<CursorPayload>();
                     if (data?.User == null)
                     {
-                        if (cursorReceiveCount <= 3)
-                            System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-                                MyControl?.AddLog($"[DEBUG-CURSOR] Recibido #{cursorReceiveCount} pero User es null")));
                         return;
                     }
-
-                    if (cursorReceiveCount <= 3 || cursorReceiveCount % 200 == 0)
-                        System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-                            MyControl?.AddLog($"[DEBUG-CURSOR] Recibido #{cursorReceiveCount} de {data.User}: ({data.X:F1}, {data.Y:F1}, {data.Z:F1})")));
 
                     var pt = new Point3d(data.X, data.Y, data.Z);
                     System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>

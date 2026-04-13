@@ -90,6 +90,16 @@ namespace CadSyncPlugin
             return result;
         }
 
+        /// <summary>
+        /// Devuelve la última posición conocida de un usuario, si existe.
+        /// </summary>
+        public Point3d? GetLastPosition(string user)
+        {
+            if (_ghosts.TryGetValue(user, out var ghost))
+                return ghost.LastPosition;
+            return null;
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -113,6 +123,7 @@ namespace CadSyncPlugin
 
         public short ColorIndex { get; }
         public string User { get; }
+        public Point3d LastPosition { get; private set; }
 
         public GhostInstance(string user, short colorIndex)
         {
@@ -136,6 +147,7 @@ namespace CadSyncPlugin
 
         public void UpdatePosition(Point3d pos, double crossSize)
         {
+            LastPosition = pos;
             double s = crossSize;
             _hLine.StartPoint = new Point3d(pos.X - s, pos.Y, pos.Z);
             _hLine.EndPoint   = new Point3d(pos.X + s, pos.Y, pos.Z);
