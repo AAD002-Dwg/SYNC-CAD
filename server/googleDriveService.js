@@ -2,41 +2,66 @@ const { google } = require('googleapis');
 const path = require('path');
 const fs = require('fs');
 
-// Permisos necesarios: Acceso a archivos creados por la app o compartidios con ella
+// Permisos necesarios: Acceso a archivos creados por la app o compartidos con ella
 const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive.readonly'];
 const CREDENTIALS_PATH = path.join(__dirname, 'credentials.json');
 
 /**
- * Inicializa el servicio de Google Drive usando una Service Account
+ * Inicializa el servicio de Google Drive.
+ * Prioridad de autenticación:
+ *   1. OAuth2 (refresh token) — recomendado, usa cuota del usuario real
+ *   2. Service Account (env var GOOGLE_CREDENTIALS) — legacy, 0 bytes de cuota
+ *   3. Service Account (archivo credentials.json) — legacy, desarrollo local
  */
 async function getDriveService() {
-    const credentialsEnv = process.env.GOOGLE_CREDENTIALS;
-    let auth;
+    let authClient;
 
-    if (credentialsEnv) {
-        console.log('✅ googleDriveService: Usando credenciales desde variable de entorno.');
+    // ── Opción 1: OAuth2 con Refresh Token (RECOMENDADO) ──────────
+    const clientId     = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+
+    if (clientId && clientSecret && refreshToken) {
+        console.log('✅ googleDriveService: Usando OAuth2 (refresh token).');
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+        oauth2Client.setCredentials({ refresh_token: refreshToken });
+        authClient = oauth2Client;
+    }
+
+    // ── Opción 2: Service Account desde variable de entorno ───────
+    else if (process.env.GOOGLE_CREDENTIALS) {
+        console.log('⚠️ googleDriveService: Usando Service Account (variable de entorno). Nota: las SA tienen 0 bytes de cuota.');
         try {
-            const keys = JSON.parse(credentialsEnv);
-            auth = new google.auth.GoogleAuth({
+            const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+            const auth = new google.auth.GoogleAuth({
                 credentials: keys,
                 scopes: SCOPES,
             });
+            authClient = await auth.getClient();
         } catch (err) {
             console.error('❌ Error al parsear GOOGLE_CREDENTIALS:', err.message);
             return null;
         }
-    } else if (fs.existsSync(CREDENTIALS_PATH)) {
+    }
+
+    // ── Opción 3: Service Account desde archivo local ─────────────
+    else if (fs.existsSync(CREDENTIALS_PATH)) {
         console.log('📂 googleDriveService: Usando archivo credentials.json local.');
-        auth = new google.auth.GoogleAuth({
+        const auth = new google.auth.GoogleAuth({
             keyFile: CREDENTIALS_PATH,
             scopes: SCOPES,
         });
-    } else {
-        console.warn('⚠️ googleDriveService: No se encontraron credenciales (ni variable ni archivo).');
+        authClient = await auth.getClient();
+    }
+
+    // ── Sin credenciales ──────────────────────────────────────────
+    else {
+        console.warn('⚠️ googleDriveService: No se encontraron credenciales.');
+        console.warn('   Configurá GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + GOOGLE_REFRESH_TOKEN');
+        console.warn('   o GOOGLE_CREDENTIALS para activar Google Drive.');
         return null;
     }
 
-    const authClient = await auth.getClient();
     return google.drive({ version: 'v3', auth: authClient });
 }
 
