@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -54,6 +55,9 @@ namespace CadSyncPlugin
         {
             try
             {
+                // Habilitar compatibilidad TLS 1.2 necesaria para AutoCAD 2022 / .NET 4.8
+                ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+
                 Application.Idle += (s, e) => ShowPalette();
                 Application.DocumentManager.DocumentActivated += (s, e) => AttachDocEvents(e.Document);
                 if (Application.DocumentManager.MdiActiveDocument != null)
@@ -180,6 +184,16 @@ namespace CadSyncPlugin
                 }
             });
 
+            _socket.OnConnected += (sender, e) => 
+            {
+                if (MyControl != null) MyControl.SetConnectionStatus(true);
+            };
+
+            _socket.OnDisconnected += (sender, e) => 
+            {
+                if (MyControl != null) MyControl.SetConnectionStatus(false);
+            };
+
             _socket.On("lock_update", response =>
             {
                 try
@@ -192,9 +206,13 @@ namespace CadSyncPlugin
                 catch { }
             });
 
-            _socket.On("sync_update", async response =>
+            _socket.On("sync_update", response =>
             {
-                if (MyControl != null) _ = MyControl.RefreshFiles();
+                // Refrescar lista de archivos en el UI (thread-safe via Dispatcher)
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _ = MyControl?.RefreshFiles();
+                }));
 
                 if (!Commands.GetAutoPull()) return;
                 try
@@ -203,9 +221,20 @@ namespace CadSyncPlugin
                     if (string.IsNullOrEmpty(data?.Layer)) return;
                     if (string.Equals(data.Layer, Commands.GetLastLayer(), StringComparison.OrdinalIgnoreCase)) return;
 
-                    var doc = Application.DocumentManager.MdiActiveDocument;
-                    doc?.Editor.WriteMessage($"\n[CADSYNC] Auto-descarga: capa {data.Layer}");
-                    await Commands.ExecuteMergeDelta(doc!, data.Layer);
+                    // IMPORTANTE: ExecuteMergeDelta requiere el hilo principal de AutoCAD.
+                    // Socket.io corre en un hilo de background donde doc.LockDocument() falla.
+                    // Usamos Application.Idle para ejecutar en el hilo correcto.
+                    string layerToMerge = data.Layer;
+                    EventHandler? idleHandler = null;
+                    idleHandler = (s, e) =>
+                    {
+                        Application.Idle -= idleHandler;
+                        var doc = Application.DocumentManager.MdiActiveDocument;
+                        if (doc == null) return;
+                        doc.Editor.WriteMessage($"\n[CADSYNC] Auto-descarga: capa {layerToMerge}");
+                        _ = Commands.ExecuteMergeDelta(doc, layerToMerge);
+                    };
+                    Application.Idle += idleHandler;
                 }
                 catch { }
             });
@@ -244,8 +273,18 @@ namespace CadSyncPlugin
                 catch { }
             });
 
-            try { await _socket.ConnectAsync(); }
-            catch { }
+            try 
+            { 
+                await _socket.ConnectAsync(); 
+            }
+            catch (System.Exception ex)
+            { 
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    MyControl?.SetConnectionStatus(false);
+                    MyControl?.AddLog($"[Socket] No se pudo conectar al servidor local/remoto.");
+                }));
+            }
         }
 
         public void Terminate()

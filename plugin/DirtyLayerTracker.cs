@@ -87,6 +87,8 @@ namespace CadSyncPlugin
             {
                 if (_dirtyLayers.Count == 0) return;
                 snapshot = new List<string>(_dirtyLayers).AsReadOnly();
+                // No limpiar aquí — FlushDirtyLayers() limpia al hacer push.
+                // Pero sí asegurar que el snapshot sea consistente.
             }
             LayersDirty?.Invoke(snapshot);
         }
