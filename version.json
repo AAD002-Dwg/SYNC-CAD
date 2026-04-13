@@ -1,6 +1,6 @@
 {
-  "version": "1.0.5",
+  "version": "1.0.6",
   "releaseDate": "2026-04-12",
-  "releaseNotes": "Hotfix v1.0.5: Reparado bug interno de AutoCAD 2025 que impedía actualizar la interfaz (hilo de Dispatcher) durante la desconexión o conexión del ghost cursor.",
+  "releaseNotes": "Hotfix v1.0.6: Solucionado error invisible del parseador de JSON que ignoraba las variables en minúscula en .NET 8, lo cual ocultaba por completo a los compañeros conectados en el panel live.",
   "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
 }

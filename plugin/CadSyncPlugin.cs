@@ -15,6 +15,7 @@ using Autodesk.AutoCAD.Geometry;
 using Newtonsoft.Json;
 using SocketIOClient;
 using SocketIOClient.Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 [assembly: ExtensionApplication(typeof(CadSyncPlugin.PluginMain))]
 
@@ -859,51 +860,51 @@ namespace CadSyncPlugin
     // ── Data Transfer Objects ─────────────────────────────────
     public class LockInfo
     {
-        [JsonProperty("user")]
+        [JsonProperty("user")] [JsonPropertyName("user")]
         public string? User { get; set; }
-        [JsonProperty("lockedAt")]
+        [JsonProperty("lockedAt")] [JsonPropertyName("lockedAt")]
         public string? LockedAt { get; set; }
     }
 
     public class LockCheckResult
     {
-        [JsonProperty("locked")]
+        [JsonProperty("locked")] [JsonPropertyName("locked")]
         public bool Locked { get; set; }
-        [JsonProperty("by")]
+        [JsonProperty("by")] [JsonPropertyName("by")]
         public string? LockedBy { get; set; }
-        [JsonProperty("since")]
+        [JsonProperty("since")] [JsonPropertyName("since")]
         public string? Since { get; set; }
     }
 
     public class SyncEntry
     {
-        [JsonProperty("user")]    public string? User     { get; set; }
-        [JsonProperty("layer")]   public string? Layer    { get; set; }
-        [JsonProperty("filename")]public string? Filename { get; set; }
+        [JsonProperty("user")] [JsonPropertyName("user")]       public string? User     { get; set; }
+        [JsonProperty("layer")] [JsonPropertyName("layer")]      public string? Layer    { get; set; }
+        [JsonProperty("filename")] [JsonPropertyName("filename")]public string? Filename { get; set; }
     }
 
     public class CursorPayload
     {
-        [JsonProperty("user")] public string? User { get; set; }
-        [JsonProperty("x")]    public double X    { get; set; }
-        [JsonProperty("y")]    public double Y    { get; set; }
-        [JsonProperty("z")]    public double Z    { get; set; }
+        [JsonProperty("user")] [JsonPropertyName("user")] public string? User { get; set; }
+        [JsonProperty("x")] [JsonPropertyName("x")]       public double X    { get; set; }
+        [JsonProperty("y")] [JsonPropertyName("y")]       public double Y    { get; set; }
+        [JsonProperty("z")] [JsonPropertyName("z")]       public double Z    { get; set; }
     }
 
     public class CursorRemovePayload
     {
-        [JsonProperty("user")] public string? User { get; set; }
+        [JsonProperty("user")] [JsonPropertyName("user")] public string? User { get; set; }
     }
 
     public class StatusResponse
     {
-        [JsonProperty("studio")]  public StudioInfo?                        Studio  { get; set; }
-        [JsonProperty("locks")]   public Dictionary<string, LockInfo>?      Locks   { get; set; }
-        [JsonProperty("history")] public List<SyncEntry>?                   History { get; set; }
+        [JsonProperty("studio")] [JsonPropertyName("studio")]   public StudioInfo?                        Studio  { get; set; }
+        [JsonProperty("locks")] [JsonPropertyName("locks")]    public Dictionary<string, LockInfo>?      Locks   { get; set; }
+        [JsonProperty("history")] [JsonPropertyName("history")]  public List<SyncEntry>?                   History { get; set; }
     }
 
     public class StudioInfo
     {
-        [JsonProperty("name")] public string? Name { get; set; }
+        [JsonProperty("name")] [JsonPropertyName("name")] public string? Name { get; set; }
     }
 }
