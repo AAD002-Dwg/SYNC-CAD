@@ -150,6 +150,7 @@ namespace CadSyncPlugin
         }
 
         // Plan 3 — Broadcast cursor position (throttled to 100ms)
+        private static int _cursorEmitCount;
         private void OnPointMonitor(object sender, PointMonitorEventArgs e)
         {
             if (!Commands.GetShowGhostCursors()) return;
@@ -166,9 +167,23 @@ namespace CadSyncPlugin
             try
             {
                 if (_socket?.Connected == true)
+                {
                     await _socket.EmitAsync("cursor_move", new { x, y, z });
+                    _cursorEmitCount++;
+                    if (_cursorEmitCount <= 3 || _cursorEmitCount % 200 == 0)
+                        MyControl?.AddLog($"[DEBUG-CURSOR] Enviado #{_cursorEmitCount}: ({x:F1}, {y:F1}, {z:F1})");
+                }
+                else
+                {
+                    _cursorEmitCount++;
+                    if (_cursorEmitCount <= 3)
+                        MyControl?.AddLog($"[DEBUG-CURSOR] Socket NO conectado — cursor no enviado");
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                MyControl?.AddLog($"[DEBUG-CURSOR] Error al emitir: {ex.Message}");
+            }
         }
 
         // ── Socket Connection ─────────────────────────────────
@@ -240,21 +255,44 @@ namespace CadSyncPlugin
             });
 
             // Plan 3 — Receive ghost cursor events
+            int cursorReceiveCount = 0;
             _socket.On("cursor_move", response =>
             {
                 try
                 {
+                    cursorReceiveCount++;
                     var data = response.GetValue<CursorPayload>();
-                    if (data?.User == null) return;
+                    if (data?.User == null)
+                    {
+                        if (cursorReceiveCount <= 3)
+                            System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                                MyControl?.AddLog($"[DEBUG-CURSOR] Recibido #{cursorReceiveCount} pero User es null")));
+                        return;
+                    }
+
+                    if (cursorReceiveCount <= 3 || cursorReceiveCount % 200 == 0)
+                        System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                            MyControl?.AddLog($"[DEBUG-CURSOR] Recibido #{cursorReceiveCount} de {data.User}: ({data.X:F1}, {data.Y:F1}, {data.Z:F1})")));
 
                     var pt = new Point3d(data.X, data.Y, data.Z);
                     System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        _ghostManager.UpdateCursor(data.User, pt);
-                        MyControl?.UpdateConnectedUsers(_ghostManager.GetUserColors());
+                        try
+                        {
+                            _ghostManager.UpdateCursor(data.User, pt);
+                            MyControl?.UpdateConnectedUsers(_ghostManager.GetUserColors());
+                        }
+                        catch (Exception ex)
+                        {
+                            MyControl?.AddLog($"[DEBUG-CURSOR] Error en UpdateCursor: {ex.Message}");
+                        }
                     }));
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        MyControl?.AddLog($"[DEBUG-CURSOR] Error al procesar cursor_move: {ex.Message}")));
+                }
             });
 
             _socket.On("cursor_remove", response =>
@@ -266,6 +304,7 @@ namespace CadSyncPlugin
 
                     System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                     {
+                        MyControl?.AddLog($"[DEBUG-CURSOR] Usuario desconectado: {data.User}");
                         _ghostManager.RemoveCursor(data.User);
                         MyControl?.UpdateConnectedUsers(_ghostManager.GetUserColors());
                     }));

@@ -325,11 +325,22 @@ io.on('connection', (socket) => {
     socket.join(socket.studioId);
     const state = getStudioState(socket.studioId);
 
+    // DEBUG: log connections
+    const roomSize = io.sockets.adapter.rooms.get(socket.studioId)?.size || 0;
+    console.log(`[SOCKET] ✅ Conectado: ${socket.userName} | Studio: ${socket.studioId} | Sala: ${roomSize} usuario(s) | ID: ${socket.id}`);
+
     // Send current state to the new client
     socket.emit('lock_update', state.layerLocks);
 
     // Plan 3: Ghost Cursors — relay cursor position to studio room (never persisted)
+    let cursorLogCount = 0;
     socket.on('cursor_move', ({ x, y, z }) => {
+        cursorLogCount++;
+        // Log solo los primeros 3 y luego cada 100 para no saturar
+        if (cursorLogCount <= 3 || cursorLogCount % 100 === 0) {
+            const targets = (io.sockets.adapter.rooms.get(socket.studioId)?.size || 1) - 1;
+            console.log(`[CURSOR] ${socket.userName} → (${x?.toFixed?.(1)}, ${y?.toFixed?.(1)}, ${z?.toFixed?.(1) || 0}) | Reenviando a ${targets} usuario(s) | #${cursorLogCount}`);
+        }
         socket.to(socket.studioId).emit('cursor_move', {
             user: socket.userName,
             x, y, z: z || 0
@@ -338,6 +349,8 @@ io.on('connection', (socket) => {
 
     // Notify room when a user disconnects so ghost cursors are cleaned up
     socket.on('disconnect', () => {
+        const remainingSize = io.sockets.adapter.rooms.get(socket.studioId)?.size || 0;
+        console.log(`[SOCKET] ❌ Desconectado: ${socket.userName} | Studio: ${socket.studioId} | Quedan: ${remainingSize} usuario(s)`);
         socket.to(socket.studioId).emit('cursor_remove', { user: socket.userName });
     });
 });
