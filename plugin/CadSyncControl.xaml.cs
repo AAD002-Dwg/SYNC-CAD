@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Newtonsoft.Json;
@@ -103,14 +104,23 @@ namespace CadSyncPlugin
             });
         }
 
+        private string _lastLocksHash = "";
+
         // ── Lock Updates ──────────────────────────────────────
         public void UpdateLocks(Dictionary<string, LockInfo>? locks)
         {
-            if (locks == null) return;
-            foreach (var kvp in locks)
+            if (locks == null || locks.Count == 0) return;
+
+            // Generate simple hash to prevent spamming
+            string hash = string.Join(",", locks.Select(x => $"{x.Key}:{x.Value.User}"));
+            if (hash == _lastLocksHash) return;
+            _lastLocksHash = hash;
+
+            var others = locks.Where(x => x.Value.User != Commands.GetLastUser()).ToList();
+            if (others.Count > 0)
             {
-                if (kvp.Value.User != Commands.GetLastUser())
-                    AddLog($"Capa bloqueada: {kvp.Key}  →  {kvp.Value.User}");
+                string info = string.Join(", ", others.Select(x => $"{x.Key} ({x.Value.User})"));
+                AddLog($"🔒 Capas reservadas por otros: {info}");
             }
         }
 

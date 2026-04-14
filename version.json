@@ -1,6 +1,6 @@
 {
-  "version": "1.0.6",
-  "releaseDate": "2026-04-12",
-  "releaseNotes": "Hotfix v1.0.6: Solucionado error invisible del parseador de JSON que ignoraba las variables en minúscula en .NET 8, lo cual ocultaba por completo a los compañeros conectados en el panel live.",
+  "version": "1.1.0",
+  "releaseDate": "2026-04-14",
+  "releaseNotes": "Actualización v1.1.0: Arquitectura MAESTRO. Sistema de Reserva de capas rediseñado para que los bloqueos funcionen de acuerdo a los candados reales del servidor preservando la libertad del usuario en el Dibujo Maestro.",
   "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
 }

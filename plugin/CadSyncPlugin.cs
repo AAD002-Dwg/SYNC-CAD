@@ -214,7 +214,31 @@ namespace CadSyncPlugin
                 try
                 {
                     var locks = response.GetValue<Dictionary<string, LockInfo>>();
-                    MyControl?.UpdateLocks(locks);
+                    
+                    MyControl?.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        MyControl?.UpdateLocks(locks);
+                    }));
+
+                    EventHandler? idleHandler = null;
+                    idleHandler = (s, e) =>
+                    {
+                        Application.Idle -= idleHandler;
+                        var doc = Application.DocumentManager.MdiActiveDocument;
+                        if (doc != null)
+                        {
+                            try
+                            {
+                                using (doc.LockDocument())
+                                {
+                                    Commands.ApplyLayerLocks(doc, locks);
+                                }
+                            }
+                            catch { }
+                        }
+                    };
+                    Application.Idle += idleHandler;
+
                     Application.DocumentManager.MdiActiveDocument?.Editor
                         .WriteMessage("\n[CADSYNC] Bloqueos actualizados.");
                 }
@@ -497,23 +521,32 @@ namespace CadSyncPlugin
             try
             {
                 await LockLayerAsync(layer);
-                ApplyLayerLocks(doc, new List<string> { layer });
                 PluginMain.MyControl?.AddLog($"Reservada y activada: {layer}");
             }
             catch { }
         }
 
-        public static void ApplyLayerLocks(Document doc, List<string> allowedLayers)
+        public static void ApplyLayerLocks(Document doc, Dictionary<string, LockInfo> serverLocks)
         {
             var db = doc.Database;
             using var tr = db.TransactionManager.StartTransaction();
             var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+            string currentUser = GetLastUser();
+
             foreach (ObjectId id in lt)
             {
                 var ltr = (LayerTableRecord)tr.GetObject(id, OpenMode.ForWrite);
-                bool allowed = allowedLayers.Exists(
-                    a => string.Equals(a, ltr.Name, StringComparison.OrdinalIgnoreCase));
-                ltr.IsLocked = !allowed;
+                bool shouldLock = false;
+
+                if (serverLocks != null && serverLocks.TryGetValue(ltr.Name, out var lockInfo))
+                {
+                    if (lockInfo != null && lockInfo.User != currentUser)
+                    {
+                        shouldLock = true;
+                    }
+                }
+
+                ltr.IsLocked = shouldLock;
             }
             tr.Commit();
         }
