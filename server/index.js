@@ -247,6 +247,14 @@ app.post('/api/sync', requireStudio, upload.single('file'), async (req, res) => 
         res.status(500).json({ error: 'Error al sincronizar con Google Drive' });
     }
 });
+// ── API: Version ────────────────────────────────────────────────
+app.get('/api/version', (req, res) => {
+    try {
+        const p = path.join(__dirname, '../version.json');
+        if (fs.existsSync(p)) return res.json(JSON.parse(fs.readFileSync(p, 'utf8')));
+    } catch { }
+    res.json({ version: "Desconocida" });
+});
 
 // ── API: Download ─────────────────────────────────────────────
 app.get('/api/download/:filename', requireStudio, async (req, res) => {

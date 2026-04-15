@@ -1,0 +1,50 @@
+# Identificación Web y Gestión del Proyecto Maestro
+
+Añadimos la funcionalidad para que la **Aplicación Web** actúe como el Orquestador Central. De este modo, los mánagers o jefes de estudio pueden organizar qué archivo pertenece a qué proyecto, todo desde el navegador, y el AutoCAD de los dibujantes se vinculará de forma silenciosa y mágica.
+
+---
+
+## El Flujo Híbrido (Web + XRecord)
+
+Para cumplir con tu propuesta, el sistema funcionará así:
+1. **El Manager en la Web:** En la App Web, el Coordinador BIM entra a la sección "Archivos". Ve el DWG que Pedro acaba de subir. Con un simple menú desplegable lo asocia y le dice *"Tú vas a pertenecer al Proyecto Torre Central"*.
+2. **Auto-Descubrimiento en AutoCAD:** Cuando los dibujantes abren el DWG de su PC (o lo descargan), el AutoCAD de ellos le pregunta por detrás al Servidor: *"Eh, mi archivo se llama `archivo.dwg`. ¿Tienes un proyecto asignado a este nombre en la Nube?"*.
+3. **Grabación de Identidad (XRecord):** Si el servidor dice *"Sí, el manager te enlazó al Proyecto 1234"*, el plugin de AutoCAD instantáneamente le **quema el chip (XRecord)** a ese archivo local de forma invisible. A partir de ese momento de bautismo, el archivo de AutoCAD siempre sabrá quién es y a dónde subir sus capas.
+
+---
+
+## Cambios Propuestos
+
+### 1. App Web (Frontend React)
+
+#### [MODIFY] `client/src/pages/FilesPage.jsx`(file:///g:/SYNC-CAD/client/src/pages/FilesPage.jsx)
+- **Selector de Proyectos:** Por cada archivo DWG listado, añadir un pequeño *dropdown* (ComboBox) que permita asignarlo rápidamente a un proyecto existente del Dashboard.
+- **Visualización:** Agregar una etiqueta colorida junto al nombre del archivo (`[Torre Central]`) si ya está asignado.
+- Al cambiar el dropdown, disparar el endpoint `POST /api/files/meta` para guardarlo en la base de datos del servidor.
+
+### 2. Servidor (Backend)
+
+#### [MODIFY] `server/index.js`(file:///g:/SYNC-CAD/server/index.js)
+- Reparar y confirmar el endpoint `POST /api/files/meta` para permitir actualizar manualmente la variable `projectId` asociada a la clave `filename`. 
+
+### 3. Plugin (AutoCAD C#)
+
+#### [NEW] `plugin/ProjectContextManager.cs`(file:///g:/SYNC-CAD/plugin/ProjectContextManager.cs)
+- `BindProject(string projectId)`: Graba la huella en el archivo (NOD / XRecord).
+- `GetBoundProjectId()`: Verifica si la huella existe en el archivo.
+
+#### [MODIFY] `plugin/CadSyncPlugin.cs`(file:///g:/SYNC-CAD/plugin/CadSyncPlugin.cs)
+- **Evento de Apertura (`DocumentCreated` / `DocumentToBeActivated`):**
+  1. Revisar si hay un XRecord.
+  2. Si NO lo hay, llamar al endpoint `GET /api/files/meta` para preguntar si el Jefe lo asignó desde la Web.
+  3. Si la respuesta trae un `projectId` y hace *match* con nuestro nombre de archivo, ejecutar `BindProject()` inyectando el chip que indicó el servidor.
+- **Validación al Sincronizar:** Al hacer un Pull o Push Delta, usar ese `projectId` (Huella del XRecord) para filtrar, bajar o mandar la capa exclusivamente dentro de los parámetros de ese proyecto en el servidor y evitar que crucen archivos.
+
+---
+
+## User Review Required
+
+> [!TIP]  
+> Combinar tu idea de gobernarlo desde la Web con la tecnología `XRecord` hace de esto un sistema industrial. El AutoCAD es "tonto" hasta que se sube la primera vez, el Web Manager define a dónde va, y la siguiente vez el AutoCAD graba el ID de forma permanente en su código genético local.
+> 
+> ¿Aprobamos el *Implementation Plan* con esta sinergia **Web <-> AutoCAD** para empezar la fase de Codificación (Execution)?

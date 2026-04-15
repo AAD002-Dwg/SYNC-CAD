@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ApplicationPackage SchemaVersion="1.0" 
-                    AppVersion="1.1.0" 
+                    AppVersion="1.2.0" 
                     ProductCode="{BB0B1234-5678-4CDE-9ABC-FEDCBA098765}" 
                     Name="CadSync Plugin" 
                     Description="Sincronización bidireccional con plataforma web">
@@ -9,18 +9,18 @@
     <!-- Soporte para AutoCAD 2022 (Era R24) -->
     <Components>
         <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R24.0" SeriesMax="R24.3" />
-        <ComponentEntry AppName="CadSyncPlugin2022" AppDescription="CAD Sync Plugin 2022" AppVersion="1.1.0" ModuleName="./Contents/2022/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
+        <ComponentEntry AppName="CadSyncPlugin2022" AppDescription="CAD Sync Plugin 2022" AppVersion="1.2.0" ModuleName="./Contents/2022/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
     </Components>
 
     <!-- Soporte para AutoCAD 2025 (Era R25 - .NET 8) -->
     <Components>
         <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R25.0" SeriesMax="R25.3" />
-        <ComponentEntry AppName="CadSyncPlugin2025" AppDescription="CAD Sync Plugin 2025" AppVersion="1.1.0" ModuleName="./Contents/2025/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
+        <ComponentEntry AppName="CadSyncPlugin2025" AppDescription="CAD Sync Plugin 2025" AppVersion="1.2.0" ModuleName="./Contents/2025/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
     </Components>
 
     <!-- Soporte para AutoCAD 2027 (Era R26 - .NET 10) -->
     <Components>
         <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R26.0" SeriesMax="R26.0" />
-        <ComponentEntry AppName="CadSyncPlugin2027" AppDescription="CAD Sync Plugin 2027" AppVersion="1.1.0" ModuleName="./Contents/2027/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
+        <ComponentEntry AppName="CadSyncPlugin2027" AppDescription="CAD Sync Plugin 2027" AppVersion="1.2.0" ModuleName="./Contents/2027/CadSyncPlugin.dll" AppType="dotNet" LoadOnAutoCADStartup="True" />
     </Components>
 </ApplicationPackage>

@@ -106,6 +106,14 @@ function AppLayout({ theme, setTheme }) {
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [studioKey,    setStudioKey]    = useState(getStoredKey);
   const [user]                          = useState(getStoredUser);
+  const [appVersion,   setAppVersion]   = useState('v...');
+
+  // Fetch Version
+  useEffect(() => {
+    axios.get(`${API_URL}/version`)
+      .then(r => setAppVersion(`v${r.data.version}`))
+      .catch(() => setAppVersion('v1.x'));
+  }, []);
 
   // Create socket with studioKey in auth handshake
   useEffect(() => {
@@ -210,7 +218,7 @@ function AppLayout({ theme, setTheme }) {
           </button>
 
           <PageTitle />
-          <span className="app-topbar__badge">v1.2</span>
+          <span className="app-topbar__badge">{appVersion}</span>
 
           <div className="topbar-spacer" />
 

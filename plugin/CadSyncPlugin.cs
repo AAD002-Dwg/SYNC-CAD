@@ -103,6 +103,37 @@ namespace CadSyncPlugin
             // Plan 3: attach PointMonitor for cursor broadcasting
             doc.Editor.PointMonitor -= OnPointMonitor;
             doc.Editor.PointMonitor += OnPointMonitor;
+
+            CheckAndBindProjectContext(doc);
+        }
+
+        private static async void CheckAndBindProjectContext(Document doc)
+        {
+            string currentId = ProjectContextManager.GetBoundProjectId(doc);
+            if (!string.IsNullOrEmpty(currentId)) return;
+
+            string filename = Path.GetFileName(doc.Name);
+            if (string.IsNullOrEmpty(filename) || filename.StartsWith("Drawing")) return;
+
+            try
+            {
+                var response = await Commands.GetAsync($"{Commands.GetServerUrl()}/api/files/meta");
+                if (response.IsSuccessStatusCode)
+                {
+                    string json = await response.Content.ReadAsStringAsync();
+                    var metaDict = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.Dictionary<string, dynamic>>(json);
+
+                    if (metaDict.TryGetValue(filename, out dynamic metaItem))
+                    {
+                        string pid = metaItem?.projectId;
+                        if (!string.IsNullOrEmpty(pid))
+                        {
+                            ProjectContextManager.BindProject(doc, pid);
+                        }
+                    }
+                }
+            }
+            catch { /* Silencioso en fondo */ }
         }
 
         private async void Doc_CommandEnded(object sender, CommandEventArgs e)
@@ -625,12 +656,17 @@ namespace CadSyncPlugin
             try
             {
                 using var form = new MultipartFormDataContent();
-                form.Add(new StringContent(_config.LastUser), "user");
+                form.Add(new StringContent(Commands.GetLastUser()), "user");
                 form.Add(new StringContent(layer), "layer");
+
+                string projectId = ProjectContextManager.GetBoundProjectId(doc);
+                if (!string.IsNullOrEmpty(projectId))
+                    form.Add(new StringContent(projectId), "projectId");
+
                 using var stream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 form.Add(new StreamContent(stream), "file", Path.GetFileName(tempPath));
 
-                var response = await PostAsync($"{_config.ServerUrl}/api/sync", form);
+                var response = await Commands.PostAsync($"{Commands.GetServerUrl()}/api/sync", form);
                 if (response.IsSuccessStatusCode)
                 {
                     try { File.Delete(tempPath); } catch { }

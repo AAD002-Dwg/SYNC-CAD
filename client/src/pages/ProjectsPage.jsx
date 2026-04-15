@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, FolderOpen, Calendar } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, Calendar, FileCode2 } from 'lucide-react';
 import axios from 'axios';
 import { API_URL } from '../App';
 
@@ -11,13 +11,27 @@ const PALETTE = [
 
 export default function ProjectsPage() {
   const [projects,  setProjects]  = useState([]);
+  const [files,     setFiles]     = useState([]);
+  const [fileMeta,  setFileMeta]  = useState({});
   const [creating,  setCreating]  = useState(false);
   const [newName,   setNewName]   = useState('');
   const [newColor,  setNewColor]  = useState(PALETTE[0]);
   const [loading,   setLoading]   = useState(false);
 
-  const load = () =>
-    axios.get(`${API_URL}/projects`).then(r => setProjects(r.data)).catch(() => {});
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [projRes, filesRes, metaRes] = await Promise.all([
+        axios.get(`${API_URL}/projects`),
+        axios.get(`${API_URL}/files`),
+        axios.get(`${API_URL}/files/meta`)
+      ]);
+      setProjects(projRes.data ?? []);
+      setFiles(filesRes.data ?? []);
+      setFileMeta(metaRes.data ?? {});
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -118,26 +132,48 @@ export default function ProjectsPage() {
           <p style={{ fontSize: 'var(--fs-sm)' }}>Creá el primero usando el botón de arriba.</p>
         </div>
       ) : (
-        <div className="projects-grid">
-          {projects.map(p => (
-            <div key={p.id} className="ad-card project-card animate-in">
-              <div className="project-card__color" style={{ background: p.color }} />
-              <div className="project-card__body">
-                <div className="project-card__name">{p.name}</div>
-                <div className="project-card__meta" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Calendar size={10} />
-                  {new Date(p.createdAt).toLocaleDateString('es-AR')}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-lg)' }}>
+          {projects.map(p => {
+            const projectFiles = files.filter(f => fileMeta[f]?.projectId === p.id);
+            return (
+              <div key={p.id} className="ad-card animate-in" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--sp-md)', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ width: 12, height: 12, borderRadius: '50%', background: p.color, marginRight: 12 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{p.name}</div>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Calendar size={10} />
+                      {new Date(p.createdAt).toLocaleDateString('es-AR')}
+                    </div>
+                  </div>
+                  <button
+                    className="ad-btn ad-btn--icon"
+                    onClick={() => handleDelete(p.id)}
+                    title="Eliminar proyecto"
+                  >
+                    <Trash2 size={13} style={{ color: 'var(--text-hint)' }} />
+                  </button>
+                </div>
+                
+                <div style={{ background: 'var(--bg-card-alt)', padding: 'var(--sp-md)' }}>
+                  {projectFiles.length === 0 ? (
+                    <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-hint)' }}>
+                      No hay archivos maestro de AutoCAD vinculados a este proyecto.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {projectFiles.map(f => (
+                        <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--bg-main)', borderRadius: 'var(--radius-base)', border: '1px solid var(--border)' }}>
+                          <FileCode2 size={14} style={{ color: p.color }} />
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>{f}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-              <button
-                className="ad-btn ad-btn--icon project-card__delete"
-                onClick={() => handleDelete(p.id)}
-                title="Eliminar proyecto"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
