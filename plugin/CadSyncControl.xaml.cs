@@ -222,7 +222,7 @@ namespace CadSyncPlugin
                         AddLog($"Error HTTP {response.StatusCode} al cargar archivos.");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             { 
                 AddLog("Error de red: No se pudo contactar al servidor.");
             }

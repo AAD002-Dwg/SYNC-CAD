@@ -50,7 +50,7 @@ namespace CadSyncPlugin
             }
         }
 
-        public static string GetBoundProjectId(Document doc)
+        public static string? GetBoundProjectId(Document doc)
         {
             if (doc == null) return null;
 

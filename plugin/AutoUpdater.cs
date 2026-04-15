@@ -35,7 +35,7 @@ namespace CadSyncPlugin
             "https://raw.githubusercontent.com/AAD002-Dwg/SYNC-CAD/main/version.json";
 
         // Versión compilada en este binario (se actualiza en cada release)
-        public const string CURRENT_VERSION = "1.2.0";
+        public const string CURRENT_VERSION = "1.2.1";
 
         // Nombre del JSON local dentro del bundle instalado
         private const string LOCAL_VERSION_FILE = "version.local.json";

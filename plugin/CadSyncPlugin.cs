@@ -121,11 +121,11 @@ namespace CadSyncPlugin
                 if (response.IsSuccessStatusCode)
                 {
                     string json = await response.Content.ReadAsStringAsync();
-                    var metaDict = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.Dictionary<string, dynamic>>(json);
+                    var metaDict = Newtonsoft.Json.JsonConvert.DeserializeObject<System.Collections.Generic.Dictionary<string, Newtonsoft.Json.Linq.JObject>>(json);
 
-                    if (metaDict.TryGetValue(filename, out dynamic metaItem))
+                    if (metaDict != null && metaDict.TryGetValue(filename, out var metaItem))
                     {
-                        string pid = metaItem?.projectId;
+                        string pid = metaItem["projectId"]?.ToString();
                         if (!string.IsNullOrEmpty(pid))
                         {
                             ProjectContextManager.BindProject(doc, pid);
@@ -288,13 +288,10 @@ namespace CadSyncPlugin
                 try
                 {
                     var data = response.GetValue<SyncEntry>();
-                    if (string.IsNullOrEmpty(data?.Layer)) return;
+                    if (data == null || string.IsNullOrEmpty(data.Layer)) return;
                     if (string.Equals(data.Layer, Commands.GetLastLayer(), StringComparison.OrdinalIgnoreCase)) return;
 
-                    // IMPORTANTE: ExecuteMergeDelta requiere el hilo principal de AutoCAD.
-                    // Socket.io corre en un hilo de background donde doc.LockDocument() falla.
-                    // Usamos Application.Idle para ejecutar en el hilo correcto.
-                    string layerToMerge = data.Layer;
+                    string layerToMerge = data.Layer!;
                     EventHandler? idleHandler = null;
                     idleHandler = (s, e) =>
                     {
