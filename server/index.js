@@ -354,9 +354,50 @@ app.get('/api/download/:filename', requireStudio, async (req, res) => {
 });
 
 // ── API: Projects ─────────────────────────────────────────────
-app.get('/api/projects', requireStudio, (req, res) => {
+app.get('/api/projects', requireStudio, async (req, res) => {
     const data = loadData(req.studioId);
-    res.json(data.projects ?? []);
+    const localProjects = data.projects ?? [];
+
+    try {
+        const rootFolderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+        if (!rootFolderId) return res.json(localProjects);
+
+        // Fetch folders from Drive
+        const driveFolders = await driveService.listFolders(rootFolderId, req.studio.refreshToken);
+
+        const updatedProjects = [];
+        let dataChanged = false;
+
+        const localMap = new Map();
+        for (const lp of localProjects) {
+            localMap.set(lp.id, lp);
+        }
+
+        for (const df of driveFolders) {
+            if (localMap.has(df.id)) {
+                updatedProjects.push(localMap.get(df.id));
+            } else {
+                // Auto-discover new folder
+                updatedProjects.push({
+                    id: df.id,
+                    name: df.name,
+                    color: '#55AAFF', // Default color
+                    createdAt: df.createdTime || new Date().toISOString()
+                });
+                dataChanged = true;
+            }
+        }
+
+        if (localProjects.length !== updatedProjects.length || dataChanged) {
+            data.projects = updatedProjects;
+            saveData(req.studioId, data);
+        }
+
+        res.json(updatedProjects);
+    } catch (err) {
+        console.error('Error auto-descubriendo proyectos en Drive:', err);
+        res.json(localProjects); // Fallback
+    }
 });
 
 app.post('/api/projects', requireStudio, async (req, res) => {
