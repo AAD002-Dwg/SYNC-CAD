@@ -71,6 +71,44 @@ function saveData(studioId, data) {
     fs.writeFileSync(dataPath(studioId), JSON.stringify(data, null, 2));
 }
 
+/**
+ * Reconciles fileMeta by scanning all files in Google Drive (root + project folders).
+ * Fills in missing entries so that file→project mappings survive server restarts.
+ */
+async function reconcileFileMeta(studioId, refreshToken) {
+    const rootFolderId = studios[studioId]?.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!rootFolderId) return;
+
+    try {
+        const allFiles = await driveService.listAllFilesRecursive(rootFolderId, refreshToken);
+        const data = loadData(studioId);
+        if (!data.fileMeta) data.fileMeta = {};
+
+        let added = 0;
+        for (const f of allFiles) {
+            if (!data.fileMeta[f.name]) {
+                data.fileMeta[f.name] = {
+                    projectId: f.parentFolderId === rootFolderId ? null : f.parentFolderId,
+                    driveFileId: f.id,
+                    discoveredAt: new Date().toISOString()
+                };
+                added++;
+            } else if (!data.fileMeta[f.name].projectId && f.parentFolderId !== rootFolderId) {
+                // File exists in meta but missing project link — fix it
+                data.fileMeta[f.name].projectId = f.parentFolderId;
+                added++;
+            }
+        }
+
+        if (added > 0) {
+            saveData(studioId, data);
+            console.log(`[RECONCILE] Studio ${studioId}: ${added} archivos descubiertos/actualizados en Drive.`);
+        }
+    } catch (err) {
+        console.error(`[RECONCILE] Error para studio ${studioId}:`, err.message);
+    }
+}
+
 // ── Studio Middleware ─────────────────────────────────────────
 function requireStudio(req, res, next) {
     // Aceptamos Token (JWT) en Authorization header o StudioKey legacy
@@ -211,10 +249,20 @@ app.get('/api/studios', (req, res) => {
 // ── API: Files ────────────────────────────────────────────────
 app.get('/api/files', requireStudio, async (req, res) => {
     try {
-        const folderId = req.query.projectId || req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
-        if (!folderId) return res.json([]);
-        const files = await driveService.listFiles(folderId, req.studio.refreshToken);
-        res.json(files.map(f => f.name));
+        const rootFolderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+        if (!rootFolderId) return res.json([]);
+
+        const projectId = req.query.projectId;
+
+        if (projectId) {
+            // List files in a specific project folder
+            const files = await driveService.listFiles(projectId, req.studio.refreshToken);
+            return res.json(files.map(f => f.name));
+        }
+
+        // No projectId: list ALL files (root + all project subfolders)
+        const allFiles = await driveService.listAllFilesRecursive(rootFolderId, req.studio.refreshToken);
+        res.json(allFiles.map(f => f.name));
     } catch (err) {
         console.error('Error listado Drive:', err);
         res.status(500).json({ error: 'Error al listar archivos de Drive' });
@@ -432,8 +480,15 @@ app.delete('/api/projects/:id', requireStudio, (req, res) => {
 });
 
 // ── API: File Metadata ────────────────────────────────────────
-app.get('/api/files/meta', requireStudio, (req, res) => {
-    const data = loadData(req.studioId);
+app.get('/api/files/meta', requireStudio, async (req, res) => {
+    let data = loadData(req.studioId);
+
+    // Auto-reconcile: if fileMeta is empty, rebuild from Drive
+    if (!data.fileMeta || Object.keys(data.fileMeta).length === 0) {
+        await reconcileFileMeta(req.studioId, req.studio.refreshToken);
+        data = loadData(req.studioId);
+    }
+
     res.json(data.fileMeta ?? {});
 });
 

@@ -111,7 +111,13 @@ namespace CadSyncPlugin
         private static async void CheckAndBindProjectContext(Document doc)
         {
             string currentId = ProjectContextManager.GetBoundProjectId(doc);
-            if (!string.IsNullOrEmpty(currentId)) return;
+
+            // If already bound, just refresh files with the project context
+            if (!string.IsNullOrEmpty(currentId))
+            {
+                _ = MyControl?.RefreshFiles();
+                return;
+            }
 
             string filename = Path.GetFileName(doc.Name);
             if (string.IsNullOrEmpty(filename) || filename.StartsWith("Drawing")) return;
@@ -130,6 +136,8 @@ namespace CadSyncPlugin
                         if (!string.IsNullOrEmpty(pid))
                         {
                             ProjectContextManager.BindProject(doc, pid);
+                            // Refresh file list with the new project context
+                            _ = MyControl?.RefreshFiles();
                         }
                     }
                 }
@@ -708,7 +716,14 @@ namespace CadSyncPlugin
             try
             {
                 string encoded = Uri.EscapeDataString(filename);
-                var response = await GetAsync($"{_config.ServerUrl}/api/download/{encoded}");
+                string url = $"{_config.ServerUrl}/api/download/{encoded}";
+
+                // Append project context so server searches the correct folder
+                string projectId = ProjectContextManager.GetBoundProjectId(doc);
+                if (!string.IsNullOrEmpty(projectId))
+                    url += $"?projectId={Uri.EscapeDataString(projectId)}";
+
+                var response = await GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
                     string localPath = Path.Combine(
@@ -743,7 +758,14 @@ namespace CadSyncPlugin
             try
             {
                 string encoded = Uri.EscapeDataString($"{layerName}.dwg");
-                var response = await GetAsync($"{_config.ServerUrl}/api/download/{encoded}");
+                string url = $"{_config.ServerUrl}/api/download/{encoded}";
+
+                // Append project context so server searches the correct folder
+                string projectId = ProjectContextManager.GetBoundProjectId(doc);
+                if (!string.IsNullOrEmpty(projectId))
+                    url += $"?projectId={Uri.EscapeDataString(projectId)}";
+
+                var response = await GetAsync(url);
                 if (!response.IsSuccessStatusCode)
                 {
                     doc.Editor.WriteMessage(

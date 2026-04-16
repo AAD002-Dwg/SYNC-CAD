@@ -1,6 +1,6 @@
 {
-  "version": "1.3.1",
-  "releaseDate": "2026-04-15",
-  "releaseNotes": "v1.3.1: Fix de sincronización de proyectos en entornos efímeros (Render). Corrección del endpoint de versión del servidor. Mejoras internas de estabilidad.",
+  "version": "1.3.2",
+  "releaseDate": "2026-04-16",
+  "releaseNotes": "v1.3.2: Fix descubrimiento de archivos dentro de proyectos. Auto-reconciliación de metadata tras restart del servidor. Plugin ahora filtra archivos por contexto de proyecto activo.",
   "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
 }

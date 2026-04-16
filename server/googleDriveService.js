@@ -208,4 +208,33 @@ async function listFolders(folderId, studioRefreshToken = null) {
     }));
 }
 
-module.exports = { uploadFile, downloadFile, listFiles, createFolder, listFolders };
+/**
+ * Lista TODOS los archivos DWG/DXF en la carpeta raíz y en todas las subcarpetas (proyectos).
+ * Devuelve cada archivo con su parentFolderId para poder reconstruir la relación archivo→proyecto.
+ * @returns {Array<{name, id, modified, size, parentFolderId}>}
+ */
+async function listAllFilesRecursive(rootFolderId, studioRefreshToken = null) {
+    const drive = await getDriveService(studioRefreshToken);
+    if (!drive) return [];
+
+    const allFiles = [];
+
+    // 1. Archivos en la raíz
+    const rootFiles = await listFiles(rootFolderId, studioRefreshToken);
+    for (const f of rootFiles) {
+        allFiles.push({ ...f, parentFolderId: rootFolderId });
+    }
+
+    // 2. Subcarpetas (proyectos)
+    const folders = await listFolders(rootFolderId, studioRefreshToken);
+    for (const folder of folders) {
+        const folderFiles = await listFiles(folder.id, studioRefreshToken);
+        for (const f of folderFiles) {
+            allFiles.push({ ...f, parentFolderId: folder.id });
+        }
+    }
+
+    return allFiles;
+}
+
+module.exports = { uploadFile, downloadFile, listFiles, createFolder, listFolders, listAllFilesRecursive };

@@ -207,7 +207,22 @@ namespace CadSyncPlugin
         {
             try
             {
-                var response = await Commands.GetAsync($"{Commands.GetServerUrl()}/api/files");
+                // Detect the current document's project context
+                string projectId = null;
+                try
+                {
+                    var doc = Autodesk.AutoCAD.ApplicationServices.Application
+                        .DocumentManager.MdiActiveDocument;
+                    if (doc != null)
+                        projectId = ProjectContextManager.GetBoundProjectId(doc);
+                }
+                catch { /* AutoCAD may not be ready */ }
+
+                string url = $"{Commands.GetServerUrl()}/api/files";
+                if (!string.IsNullOrEmpty(projectId))
+                    url += $"?projectId={System.Uri.EscapeDataString(projectId)}";
+
+                var response = await Commands.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
                     var json  = await response.Content.ReadAsStringAsync();
@@ -218,6 +233,10 @@ namespace CadSyncPlugin
                         if (files != null)
                             foreach (var f in files) FileCombo.Items.Add(f);
                         if (FileCombo.Items.Count > 0) FileCombo.SelectedIndex = 0;
+
+                        // Show project context in log (only once on first load)
+                        if (!string.IsNullOrEmpty(projectId) && files?.Count > 0)
+                            AddLog($"📁 Mostrando {files.Count} archivo(s) del proyecto activo.");
                     });
                 }
                 else
