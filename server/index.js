@@ -149,9 +149,8 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-app.get('/api/version', (req, res) => {
-    res.json({ version: '1.3.0' });
-});
+
+
 
 // ── API: Auth (Google OAuth) ──────────────────────────────────
 app.post('/api/auth/google/admin-link', async (req, res) => {

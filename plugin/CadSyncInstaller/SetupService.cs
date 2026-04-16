@@ -11,7 +11,7 @@ namespace CadSyncInstaller
     public class SetupService
     {
         const string APP_NAME = "SYNC-CAD Plugin";
-        const string APP_VERSION = "1.3.0";
+        const string APP_VERSION = "1.3.1";
         const string BUNDLE_NAME = "CadSync.bundle";
         const string REGISTRY_KEY = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\CadSync";
         const string PUBLISHER = "AAD002 - SYNC-CAD";

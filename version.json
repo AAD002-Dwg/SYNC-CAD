@@ -1,6 +1,6 @@
 {
   "version": "1.3.1",
   "releaseDate": "2026-04-15",
-  "releaseNotes": "v1.3.1: Hotfix de Auto-Discovery (Descubrimiento Automático) de proyectos y carpetas en ecosistemas efímeros como Render.",
+  "releaseNotes": "v1.3.1: Fix de sincronización de proyectos en entornos efímeros (Render). Corrección del endpoint de versión del servidor. Mejoras internas de estabilidad.",
   "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
 }
