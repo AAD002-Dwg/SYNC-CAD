@@ -189,7 +189,7 @@ export default function FilesPage() {
                   // Support both old (string) and new (object) formats
                   const filename = typeof fileObj === 'string' ? fileObj : fileObj.name;
                   const fileSize = typeof fileObj === 'object' ? fileObj.size : null;
-                  const meta = fileObj.meta || fileMeta[filename] || {};
+                   const meta = { ...(fileObj.meta || {}), ...(fileMeta[filename] || {}) };
                   const proj = projects.find(p => p.id === meta.projectId);
 
                   return (
