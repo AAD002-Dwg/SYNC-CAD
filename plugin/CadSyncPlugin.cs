@@ -28,6 +28,7 @@ namespace CadSyncPlugin
         public string LastUser         { get; set; } = Environment.UserName;
         public string LastLayer        { get; set; } = "";
         public string StudioKey        { get; set; } = "";
+        public string DesktopToken     { get; set; } = "";
         public bool   AutoPush         { get; set; } = false;
         public bool   AutoPull         { get; set; } = false;
         public bool   ShowGhostCursors { get; set; } = true;
@@ -226,7 +227,8 @@ namespace CadSyncPlugin
                 Auth = new Dictionary<string, string>
                 {
                     ["studioKey"] = Commands.GetStudioKey(),
-                    ["user"]      = Commands.GetLastUser()
+                    ["user"]      = Commands.GetLastUser(),
+                    ["token"]     = Commands.GetDesktopToken()
                 }
             });
 
@@ -418,6 +420,7 @@ namespace CadSyncPlugin
         public static string GetLastUser()          => _config.LastUser;
         public static string GetLastLayer()         => _config.LastLayer;
         public static string GetStudioKey()         => _config.StudioKey;
+        public static string GetDesktopToken()      => _config.DesktopToken;
         public static bool   GetAutoPush()          => _config.AutoPush;
         public static bool   GetAutoPull()          => _config.AutoPull;
         public static bool   GetShowGhostCursors()  => _config.ShowGhostCursors;
@@ -425,6 +428,7 @@ namespace CadSyncPlugin
         public static void SetAutoPush(bool val)         { _config.AutoPush = val; SaveConfig(); }
         public static void SetAutoPull(bool val)         { _config.AutoPull = val; SaveConfig(); }
         public static void SetStudioKey(string val)      { _config.StudioKey = val; SaveConfig(); }
+        public static void SetDesktopToken(string val)   { _config.DesktopToken = val; SaveConfig(); }
         public static void SetShowGhostCursors(bool val) { _config.ShowGhostCursors = val; SaveConfig(); }
 
         private static void LoadConfig()
@@ -444,6 +448,8 @@ namespace CadSyncPlugin
             var req = new HttpRequestMessage(method, url);
             if (!string.IsNullOrEmpty(_config.StudioKey))
                 req.Headers.Add("x-studio-key", _config.StudioKey);
+            if (!string.IsNullOrEmpty(_config.DesktopToken))
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _config.DesktopToken);
             return req;
         }
 
@@ -660,10 +666,15 @@ namespace CadSyncPlugin
                 if (!string.IsNullOrEmpty(projectId))
                     form.Add(new StringContent(projectId), "projectId");
 
+                if (!string.IsNullOrEmpty(Commands.GetDesktopToken()))
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Commands.GetDesktopToken());
+
                 using var stream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 form.Add(new StreamContent(stream), "file", Path.GetFileName(tempPath));
 
-                var response = await Commands.PostAsync($"{Commands.GetServerUrl()}/api/sync", form);
+                var req = MakeRequest(HttpMethod.Post, $"{Commands.GetServerUrl()}/api/sync");
+                req.Content = form;
+                var response = await client.SendAsync(req);
                 if (response.IsSuccessStatusCode)
                 {
                     try { File.Delete(tempPath); } catch { }

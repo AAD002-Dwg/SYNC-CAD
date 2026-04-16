@@ -327,11 +327,11 @@
                       Background="{DynamicResource BgMain}">
             <StackPanel Margin="12,12,12,16">
 
-                <!-- ── Studio Key card ── -->
+                <!-- ── Autenticación card ── -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="STUDIO KEY" Style="{StaticResource SectionLabel}"/>
-                        <Grid>
+                        <TextBlock Text="AUTENTICACIÓN" Style="{StaticResource SectionLabel}"/>
+                        <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition/>
                                 <ColumnDefinition Width="58"/>
@@ -339,11 +339,25 @@
                             <TextBox x:Name="TxtStudioKey" Grid.Column="0"
                                      FontFamily="Consolas" FontSize="11"
                                      Foreground="{DynamicResource AccentColor}"
-                                     ToolTip="Clave del estudio. Contacta al administrador si no la conoces."/>
+                                     ToolTip="Studio Key (Heredado). Mantenlo para retrocompatibilidad."/>
                             <Button x:Name="BtnSaveKey" Grid.Column="1"
                                     Content="Guardar" Margin="6,0,0,0"
                                     Style="{StaticResource GhostBtn}"
                                     Click="BtnSaveKey_Click"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/>
+                                <ColumnDefinition Width="58"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtDesktopToken" Grid.Column="0"
+                                     FontFamily="Consolas" FontSize="9"
+                                     Foreground="{DynamicResource TextMain}"
+                                     ToolTip="Desktop Token generado desde la web (Recomendado)."/>
+                            <Button x:Name="BtnSaveToken" Grid.Column="1"
+                                    Content="Aplicar" Margin="6,0,0,0"
+                                    Style="{StaticResource GhostBtn}"
+                                    Click="BtnSaveToken_Click"/>
                         </Grid>
                     </StackPanel>
                 </Border>

@@ -1,0 +1,34 @@
+# Mejorar el Instalador de SYNC-CAD para Gestionar Procesos Bloqueantes
+
+Este plan detalla cómo modificar el instalador del plugin para AutoCAD (`CadSyncInstaller`) para que detecte si hay procesos (como AutoCAD) que están utilizando los archivos del complemento y ofrezca cerrarlos automáticamente para evitar errores de "archivo en uso".
+
+## User Review Required
+
+> [!IMPORTANT]
+> El instalador solicitará confirmación al usuario antes de cerrar cualquier proceso. Se advertirá que el cierre forzado de AutoCAD puede resultar en la pérdida de trabajo no guardado.
+
+## Proposed Changes
+
+### [Component] CadSyncInstaller (C#)
+
+#### [MODIFY] [Program.cs](file:///g:/SYNC-CAD/plugin/CadSyncInstaller/Program.cs)
+
+- Implementar un método `EnsureFilesAvailable()` que verifique si procesos como `acad.exe` o `accoreconsole.exe` están activos.
+- Si se encuentran procesos activos:
+    - En modo interactivo: Mostrar un mensaje preguntando al usuario si desea cerrarlos para continuar.
+    - En modo actualización (`--update`): Ofrecer cerrar o simplemente esperar (como ya hace actualmente, pero con la opción de forzar).
+- Integrar este método al inicio de `Install()` y `PerformUninstall()`.
+- Mejorar el manejo de excepciones en `CopyFolder` y `Directory.Delete` para que el error sea más descriptivo si algo falla a pesar de los intentos de cierre.
+
+## Open Questions
+
+- ¿Deberíamos intentar un cierre "grácil" (`CloseMainWindow`) primero y luego `Kill` si no responde, o ir directamente a `Kill` tras la aceptación del usuario?
+    - *Recomendación*: `CloseMainWindow` es más seguro pero AutoCAD suele pedir guardar cambios, lo que puede bloquear el instalador si el usuario no ve la ventana de AutoCAD. Para un instalador, usualmente se pide confirmación y se hace `Kill` si el usuario acepta.
+
+## Verification Plan
+
+### Manual Verification
+- Ejecutar AutoCAD y luego intentar instalar/desinstalar el complemento mediante el `.EXE`.
+- Verificar que el instalador detecte AutoCAD abierto.
+- Confirmar el cierre y verificar que AutoCAD se cierre y la instalación proceda sin errores.
+- Denegar el cierre y verificar que el instalador informe adecuadamente que no puede continuar.

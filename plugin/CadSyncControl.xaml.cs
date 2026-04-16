@@ -41,6 +41,7 @@ namespace CadSyncPlugin
         private void LoadSettings()
         {
             TxtStudioKey.Text         = Commands.GetStudioKey();
+            TxtDesktopToken.Text      = Commands.GetDesktopToken();
             ChkAutoPush.IsChecked     = Commands.GetAutoPush();
             ChkAutoPull.IsChecked     = Commands.GetAutoPull();
             ChkGhostCursors.IsChecked = Commands.GetShowGhostCursors();
@@ -51,6 +52,13 @@ namespace CadSyncPlugin
             var key = TxtStudioKey.Text.Trim().ToUpper();
             Commands.SetStudioKey(key);
             AddLog($"Studio Key guardado: {(key.Length > 0 ? key : "(vacío)")}. Reinicia AutoCAD para reconectar.");
+        }
+
+        private void BtnSaveToken_Click(object sender, RoutedEventArgs e)
+        {
+            var token = TxtDesktopToken.Text.Trim();
+            Commands.SetDesktopToken(token);
+            AddLog($"Desktop Token guardado: {(token.Length > 0 ? "OK" : "(vacío)")}. Reinicia AutoCAD para reconectar.");
         }
 
         private void ChkAuto_Changed(object sender, RoutedEventArgs e)

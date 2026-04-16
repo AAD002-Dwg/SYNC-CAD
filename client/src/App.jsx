@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, FileCode2,
-  ChevronLeft, Sun, Moon, Wifi, WifiOff, Menu, X, Key
+  ChevronLeft, Sun, Moon, Wifi, WifiOff, Menu, X, Key, LogOut
 } from 'lucide-react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import FilesPage from './pages/FilesPage';
+import LoginModal from './components/LoginModal';
 import './index.css';
 
 export const SOCKET_URL = window.location.hostname === 'localhost'
@@ -19,19 +20,20 @@ export const API_URL = `${SOCKET_URL}/api`;
 
 // ── Helpers ───────────────────────────────────────────────────
 function getStoredKey()   { return localStorage.getItem('cad_studio_key') || ''; }
-function getStoredUser()  { return localStorage.getItem('cad_user') || `User-${Math.floor(Math.random() * 1000)}`; }
+function getStoredToken() { return localStorage.getItem('cad_jwt_token') || null; }
+function getStoredUser()  { return localStorage.getItem('cad_user') || null; }
 
-/** Apply the studio key as a default header for all subsequent axios requests. */
-function applyAxiosHeader(key) {
-  if (key) {
-    axios.defaults.headers.common['x-studio-key'] = key;
-  } else {
-    delete axios.defaults.headers.common['x-studio-key'];
-  }
+/** Apply the auth headers for all subsequent axios requests. */
+function applyAxiosHeaders(key, token) {
+  if (key) axios.defaults.headers.common['x-studio-key'] = key;
+  else delete axios.defaults.headers.common['x-studio-key'];
+
+  if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  else delete axios.defaults.headers.common['Authorization'];
 }
 
 // Apply on module load so pages don't need to worry about it.
-applyAxiosHeader(getStoredKey());
+applyAxiosHeaders(getStoredKey(), getStoredToken());
 
 // ── Nav items ─────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -105,7 +107,8 @@ function AppLayout({ theme, setTheme }) {
   const [connected,    setConnected]    = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [studioKey,    setStudioKey]    = useState(getStoredKey);
-  const [user]                          = useState(getStoredUser);
+  const [jwtToken,     setJwtToken]     = useState(getStoredToken);
+  const [user,         setUser]         = useState(getStoredUser);
   const [appVersion,   setAppVersion]   = useState('v...');
 
   // Fetch Version
@@ -115,32 +118,58 @@ function AppLayout({ theme, setTheme }) {
       .catch(() => setAppVersion('v1.x'));
   }, []);
 
-  // Create socket with studioKey in auth handshake
+  // Create socket with auth handshake
   useEffect(() => {
+    if (!studioKey || !user) return;
     const socket = io(SOCKET_URL, {
-      auth: { studioKey, user }
+      auth: { studioKey, user, token: jwtToken }
     });
     socket.on('connect',    () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
     return () => socket.disconnect();
-  }, [studioKey, user]);
+  }, [studioKey, user, jwtToken]);
 
   const handleSaveKey = useCallback((key) => {
     localStorage.setItem('cad_studio_key', key);
-    applyAxiosHeader(key);
+    applyAxiosHeaders(key, jwtToken);
     setStudioKey(key);
-  }, []);
+  }, [jwtToken]);
+
+  const handleLoginSuccess = (token, userName) => {
+    localStorage.setItem('cad_user', userName);
+    if (token) localStorage.setItem('cad_jwt_token', token);
+    
+    applyAxiosHeaders(studioKey, token);
+    setJwtToken(token);
+    setUser(userName);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('cad_user');
+    localStorage.removeItem('cad_jwt_token');
+    applyAxiosHeaders(studioKey, null);
+    setJwtToken(null);
+    setUser(null);
+  };
 
   const closeMobile = () => setMobileOpen(false);
 
   return (
     <div className="app-layout">
       {/* Studio Key Modal */}
-      {showKeyModal && (
+      {(showKeyModal || !studioKey) && (
         <StudioKeyModal
           currentKey={studioKey}
           onSave={handleSaveKey}
-          onClose={() => setShowKeyModal(false)}
+          onClose={() => studioKey && setShowKeyModal(false)}
+        />
+      )}
+
+      {/* Login Modal */}
+      {studioKey && !user && !showKeyModal && (
+        <LoginModal
+          studioKey={studioKey}
+          onLoginSuccess={handleLoginSuccess}
         />
       )}
 
@@ -251,11 +280,23 @@ function AppLayout({ theme, setTheme }) {
           </button>
 
           {/* User chip */}
-          <span className="topbar-user" title={user}>{user}</span>
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="topbar-user" title={user}>{user}</span>
+              <button
+                className="ad-btn ad-btn--icon ad-btn--ghost"
+                onClick={handleLogout}
+                title="Cerrar Sessión"
+                style={{ color: 'var(--text-hint)' }}
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          )}
         </header>
 
         <main className="app-main">
-          {!studioKey ? (
+          {!studioKey || !user ? (
             <div className="empty-page" style={{ gap: 16 }}>
               <Key size={36} style={{ color: 'var(--text-hint)' }} />
               <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Studio Key no configurada</div>

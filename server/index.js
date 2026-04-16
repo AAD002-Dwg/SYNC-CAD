@@ -8,6 +8,7 @@ const fs = require('fs');
 const os = require('os');
 require('dotenv').config();
 const driveService = require('./googleDriveService');
+const authService = require('./authService');
 
 const app = express();
 const server = http.createServer(app);
@@ -72,14 +73,37 @@ function saveData(studioId, data) {
 
 // ── Studio Middleware ─────────────────────────────────────────
 function requireStudio(req, res, next) {
-    const key = req.headers['x-studio-key'];
-    if (!key)
-        return res.status(401).json({ error: 'Header x-studio-key requerido' });
-    const studio = studios[key];
-    if (!studio)
-        return res.status(403).json({ error: 'Studio Key inválido' });
-    req.studioId = key;
+    // Aceptamos Token (JWT) en Authorization header o StudioKey legacy
+    const authHeader = req.headers.authorization;
+    const legacyKey = req.headers['x-studio-key'];
+    let studioId = null;
+    let userName = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = authService.verifySessionToken(token);
+            studioId = decoded.studioId;
+            userName = decoded.name || decoded.userName; // Web or Desktop token
+        } catch (err) {
+            return res.status(401).json({ error: 'Token inválido o expirado' });
+        }
+    } else if (legacyKey) {
+        // Fallback for older plugin versions
+        studioId = legacyKey;
+        userName = req.body?.user || req.query?.user || 'Usuario Plugin (Legacy)';
+    } else {
+        return res.status(401).json({ error: 'Falta token de autorización o Studio Key' });
+    }
+
+    const studio = studios[studioId];
+    if (!studio) {
+        return res.status(403).json({ error: 'Studio inválido o no encontrado' });
+    }
+
+    req.studioId = studioId;
     req.studio = studio;
+    req.userName = userName; // Set identity for further routes
     next();
 }
 
@@ -125,6 +149,55 @@ app.get('/api/status', (req, res) => {
     });
 });
 
+// ── API: Auth (Google OAuth) ──────────────────────────────────
+app.post('/api/auth/google/admin-link', async (req, res) => {
+    const { code, studioId, adminPin } = req.body;
+    // PIN Validation prevents guests from replacing the Drive
+    if (!adminPin || adminPin !== process.env.STUDIO_ADMIN_PIN) {
+        return res.status(403).json({ error: 'PIN de administrador incorrecto' });
+    }
+    try {
+        const tokens = await authService.exchangeCodeForTokens(code);
+        if (tokens.refresh_token) {
+            if (!studios[studioId]) studios[studioId] = { name: "Studio " + studioId };
+            studios[studioId].refreshToken = tokens.refresh_token; 
+            fs.writeFileSync(STUDIOS_FILE, JSON.stringify(studios, null, 2));
+            res.json({ message: 'Drive del Estudio vinculado exitosamente', studioId });
+        } else {
+            res.status(400).json({ error: 'No se obtuvo refresh_token. Revoca permisos e intenta de nuevo.' });
+        }
+    } catch (err) {
+        console.error('Error Admin Link:', err);
+        res.status(500).json({ error: 'Error vinculando Google Drive' });
+    }
+});
+
+app.post('/api/auth/google/user-login', async (req, res) => {
+    const { credential, studioId } = req.body;
+    try {
+        // Verifica la identidad en Google
+        const user = await authService.verifyGoogleToken(credential);
+        if (!studios[studioId]) return res.status(404).json({ error: 'Studio no encontrado' });
+        
+        // Genera token de sesión JWT
+        const sessionToken = authService.generateSessionToken({ 
+            googleId: user.googleId, 
+            name: user.name, 
+            studioId: studioId 
+        });
+        
+        res.json({ token: sessionToken, user });
+    } catch (err) {
+        res.status(401).json({ error: 'Login fallido' });
+    }
+});
+
+app.post('/api/auth/desktop-token', requireStudio, (req, res) => {
+    // Permite al usuario web generar un token para pegar en AutoCAD
+    const token = authService.generateDesktopToken(req.studioId, req.userName);
+    res.json({ desktopToken: token });
+});
+
 // ── API: Studios (admin) ──────────────────────────────────────
 app.get('/api/studios', (req, res) => {
     // Devuelve lista pública de nombres (sin exponer folderIds ni keys)
@@ -135,9 +208,9 @@ app.get('/api/studios', (req, res) => {
 // ── API: Files ────────────────────────────────────────────────
 app.get('/api/files', requireStudio, async (req, res) => {
     try {
-        const folderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+        const folderId = req.query.projectId || req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
         if (!folderId) return res.json([]);
-        const files = await driveService.listFiles(folderId);
+        const files = await driveService.listFiles(folderId, req.studio.refreshToken);
         res.json(files.map(f => f.name));
     } catch (err) {
         console.error('Error listado Drive:', err);
@@ -147,7 +220,8 @@ app.get('/api/files', requireStudio, async (req, res) => {
 
 // ── API: Locks ────────────────────────────────────────────────
 app.post('/api/lock', requireStudio, (req, res) => {
-    const { layer, user } = req.body;
+    const { layer } = req.body;
+    const user = req.userName || req.body.user;
     const state = getStudioState(req.studioId);
     const existing = state.layerLocks[layer];
     if (existing && existing.user !== user) {
@@ -161,7 +235,8 @@ app.post('/api/lock', requireStudio, (req, res) => {
 });
 
 app.post('/api/unlock', requireStudio, (req, res) => {
-    const { layer, user } = req.body;
+    const { layer } = req.body;
+    const user = req.userName || req.body.user;
     const state = getStudioState(req.studioId);
     if (state.layerLocks[layer] && state.layerLocks[layer].user === user) {
         delete state.layerLocks[layer];
@@ -173,7 +248,8 @@ app.post('/api/unlock', requireStudio, (req, res) => {
 // Heartbeat: refresca lockedAt para evitar que el TTL expire mientras el usuario trabaja
 // POST { layers: ["MUROS","SOLADOS"], user: "Juan" }
 app.post('/api/lock/heartbeat', requireStudio, (req, res) => {
-    const { layers, user } = req.body;
+    const { layers } = req.body;
+    const user = req.userName || req.body.user;
     if (!Array.isArray(layers) || !user)
         return res.status(400).json({ error: 'layers (array) y user requeridos' });
     const state = getStudioState(req.studioId);
@@ -207,16 +283,18 @@ app.post('/api/locks/check', requireStudio, (req, res) => {
 
 // ── API: Sync (Upload) ────────────────────────────────────────
 app.post('/api/sync', requireStudio, upload.single('file'), async (req, res) => {
-    const { user, layer } = req.body;
+    const { layer, projectId } = req.body;
+    const user = req.userName || req.body.user || 'Unknown';
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'No se subió ningún archivo' });
 
     try {
-        const folderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
-        if (!folderId) throw new Error('folderId no configurado para este estudio');
+        // Usamos el projectId (carpeta hija) si viene, sino la raíz del estudio
+        const targetFolder = projectId || req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+        if (!targetFolder) throw new Error('folderId no configurado para este estudio');
 
         const fileStream = fs.createReadStream(file.path);
-        await driveService.uploadFile(file.originalname, fileStream, folderId);
+        await driveService.uploadFile(file.originalname, fileStream, targetFolder, req.studio.refreshToken);
         fs.unlinkSync(file.path);
 
         const syncEntry = {
@@ -259,9 +337,9 @@ app.get('/api/version', (req, res) => {
 // ── API: Download ─────────────────────────────────────────────
 app.get('/api/download/:filename', requireStudio, async (req, res) => {
     try {
-        const folderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+        const folderId = req.query.projectId || req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
         const filename = req.params.filename;
-        const stream = await driveService.downloadFile(filename, folderId);
+        const stream = await driveService.downloadFile(filename, folderId, req.studio.refreshToken);
         res.setHeader('Content-disposition', 'attachment; filename=' + filename);
         res.setHeader('Content-type', 'application/octet-stream');
         stream.pipe(res);
@@ -277,19 +355,29 @@ app.get('/api/projects', requireStudio, (req, res) => {
     res.json(data.projects ?? []);
 });
 
-app.post('/api/projects', requireStudio, (req, res) => {
+app.post('/api/projects', requireStudio, async (req, res) => {
     const { name, color } = req.body;
     if (!name) return res.status(400).json({ error: 'Nombre requerido' });
-    const data = loadData(req.studioId);
-    const project = {
-        id: Date.now().toString(),
-        name: name.trim(),
-        color: color || '#55AAFF',
-        createdAt: new Date().toISOString()
-    };
-    data.projects.push(project);
-    saveData(req.studioId, data);
-    res.json(project);
+    
+    try {
+        const rootFolderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+        // Crea la carpeta en Drive usando las credenciales del estudio
+        const driveFolder = await driveService.createFolder(name.trim(), rootFolderId, req.studio.refreshToken);
+
+        const data = loadData(req.studioId);
+        const project = {
+            id: driveFolder.id, // El ID ahora es el Folder ID de Drive
+            name: name.trim(),
+            color: color || '#55AAFF',
+            createdAt: new Date().toISOString()
+        };
+        data.projects.push(project);
+        saveData(req.studioId, data);
+        res.json(project);
+    } catch (err) {
+        console.error('Error creando proyecto en Drive:', err);
+        res.status(500).json({ error: 'Error al crear carpeta en Google Drive' });
+    }
 });
 
 app.delete('/api/projects/:id', requireStudio, (req, res) => {

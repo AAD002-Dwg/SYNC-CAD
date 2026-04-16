@@ -9,22 +9,27 @@ const CREDENTIALS_PATH = path.join(__dirname, 'credentials.json');
 /**
  * Inicializa el servicio de Google Drive.
  * Prioridad de autenticación:
- *   1. OAuth2 (refresh token) — recomendado, usa cuota del usuario real
- *   2. Service Account (env var GOOGLE_CREDENTIALS) — legacy, 0 bytes de cuota
- *   3. Service Account (archivo credentials.json) — legacy, desarrollo local
+ *   1. Token dinámico del Estudio (refreshToken pasado como argumento)
+ *   2. OAuth2 (refresh token global en .env)
+ *   3. Service Account local (legacy)
  */
-async function getDriveService() {
+async function getDriveService(studioRefreshToken = null) {
     let authClient;
-
-    // ── Opción 1: OAuth2 con Refresh Token (RECOMENDADO) ──────────
     const clientId     = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-    if (clientId && clientSecret && refreshToken) {
-        console.log('✅ googleDriveService: Usando OAuth2 (refresh token).');
+    // ── Opción 1: Token específico del Estudio ──────────
+    if (studioRefreshToken && clientId && clientSecret) {
+        // console.log('✅ googleDriveService: Usando OAuth2 del Estudio.');
         const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
-        oauth2Client.setCredentials({ refresh_token: refreshToken });
+        oauth2Client.setCredentials({ refresh_token: studioRefreshToken });
+        authClient = oauth2Client;
+    }
+    // ── Opción 2: OAuth2 Global (refresh token en .env) ──────────
+    else if (clientId && clientSecret && process.env.GOOGLE_REFRESH_TOKEN) {
+        console.log('✅ googleDriveService: Usando OAuth2 Global (env).');
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+        oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
         authClient = oauth2Client;
     }
 
@@ -68,9 +73,9 @@ async function getDriveService() {
 /**
  * Sube un archivo a Google Drive. Si el archivo ya existe, crea una nueva versión.
  */
-async function uploadFile(filename, stream, folderId) {
-    const drive = await getDriveService();
-    if (!drive) throw new Error('Google Drive no configurado (falta credentials.json)');
+async function uploadFile(filename, stream, folderId, studioRefreshToken = null) {
+    const drive = await getDriveService(studioRefreshToken);
+    if (!drive) throw new Error('Google Drive no configurado');
 
     // 1. Buscar si el archivo ya existe en esa carpeta
     const query = `name = '${filename}' and '${folderId}' in parents and trashed = false`;
@@ -111,8 +116,8 @@ async function uploadFile(filename, stream, folderId) {
 /**
  * Obtiene un stream de descarga para un archivo específico por nombre
  */
-async function downloadFile(filename, folderId) {
-    const drive = await getDriveService();
+async function downloadFile(filename, folderId, studioRefreshToken = null) {
+    const drive = await getDriveService(studioRefreshToken);
     if (!drive) throw new Error('Google Drive no configurado');
 
     // Técnica infalible: Listar todo y buscar coincidencia en JS
@@ -142,8 +147,8 @@ async function downloadFile(filename, folderId) {
 /**
  * Lista los archivos de la carpeta
  */
-async function listFiles(folderId) {
-    const drive = await getDriveService();
+async function listFiles(folderId, studioRefreshToken = null) {
+    const drive = await getDriveService(studioRefreshToken);
     if (!drive) return [];
 
     const res = await drive.files.list({
@@ -161,4 +166,25 @@ async function listFiles(folderId) {
     }));
 }
 
-module.exports = { uploadFile, downloadFile, listFiles };
+/**
+ * Crea una carpeta en Google Drive
+ */
+async function createFolder(folderName, parentFolderId, studioRefreshToken = null) {
+    const drive = await getDriveService(studioRefreshToken);
+    if (!drive) throw new Error('Google Drive no configurado');
+
+    const fileMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parentFolderId],
+    };
+
+    const res = await drive.files.create({
+        resource: fileMetadata,
+        fields: 'id, name',
+    });
+    console.log(`[DRIVE] Carpeta creada: ${folderName} (ID: ${res.data.id})`);
+    return res.data;
+}
+
+module.exports = { uploadFile, downloadFile, listFiles, createFolder };

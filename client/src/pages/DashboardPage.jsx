@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, FileCode2, Lock, Clock, ArrowRight } from 'lucide-react';
+import { FolderOpen, FileCode2, Lock, Clock, ArrowRight, Key, Copy, Check } from 'lucide-react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { API_URL, SOCKET_URL } from '../App';
@@ -23,6 +23,8 @@ export default function DashboardPage() {
   const [locks,    setLocks]    = useState({});
   const [files,    setFiles]    = useState([]);
   const [projects, setProjects] = useState([]);
+  const [desktopToken, setDesktopToken] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     axios.get(`${API_URL}/status`).then(r => {
@@ -41,6 +43,21 @@ export default function DashboardPage() {
 
   const activeLocks = Object.keys(locks).length;
   const lastSync    = history[0];
+
+  const handleGenerateToken = async () => {
+    try {
+      const res = await axios.post(`${API_URL}/auth/desktop-token`);
+      setDesktopToken(res.data.desktopToken);
+    } catch {
+      alert("Error al generar token de escritorio");
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(desktopToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="page">
@@ -146,6 +163,36 @@ export default function DashboardPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* Plugin Configuration */}
+      <div className="ad-card" style={{ marginTop: 'var(--sp-lg)' }}>
+        <div className="ad-card__header">
+          <div className="ad-card__title">Vinculación de AutoCAD</div>
+        </div>
+        <div className="ad-card__content" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+            Para vincular tu plugin de AutoCAD a tu identidad de usuario actual, genera un Token de Escritorio y pégalo en la configuración del plugin.
+          </p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="ad-btn ad-btn--primary ad-btn--sm" onClick={handleGenerateToken}>
+              <Key size={14} style={{ marginRight: 6 }} /> Generar Token
+            </button>
+            {desktopToken && (
+               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                 <input 
+                   readOnly 
+                   className="ad-input" 
+                   value={desktopToken} 
+                   style={{ width: 300, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }} 
+                 />
+                 <button className="ad-btn ad-btn--icon" onClick={handleCopy}>
+                   {copied ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
+                 </button>
+               </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

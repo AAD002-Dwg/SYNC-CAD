@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, FolderOpen, Calendar, FileCode2 } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, Calendar, FileCode2, ExternalLink } from 'lucide-react';
 import axios from 'axios';
 import { API_URL } from '../App';
 
@@ -146,6 +146,16 @@ export default function ProjectsPage() {
                       {new Date(p.createdAt).toLocaleDateString('es-AR')}
                     </div>
                   </div>
+                  <a
+                    href={`https://drive.google.com/drive/folders/${p.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ad-btn ad-btn--icon"
+                    title="Abrir carpeta en Google Drive"
+                    style={{ marginRight: 8, color: 'var(--accent)' }}
+                  >
+                    <ExternalLink size={14} />
+                  </a>
                   <button
                     className="ad-btn ad-btn--icon"
                     onClick={() => handleDelete(p.id)}

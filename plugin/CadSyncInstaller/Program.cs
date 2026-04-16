@@ -116,6 +116,8 @@ namespace CadSyncInstaller
                     Directory.CreateDirectory(PluginsFolder);
                 }
 
+                EnsureFilesAvailable();
+
                 // Limpiar instalación anterior
                 if (Directory.Exists(DestBundle))
                 {
@@ -147,6 +149,54 @@ namespace CadSyncInstaller
             catch (Exception ex)
             {
                 ShowError($"Error durante la instalación: {ex.Message}");
+            }
+        }
+
+        static void EnsureFilesAvailable()
+        {
+            var blockingProcesses = new[] { "acad", "accoreconsole" };
+            bool issuesFound = false;
+            foreach (var procName in blockingProcesses)
+            {
+                var processes = Process.GetProcessesByName(procName);
+                if (processes.Length > 0)
+                {
+                    if (!issuesFound)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("\n[!] Se detectaron procesos de AutoCAD en ejecución que bloquearán la instalación.");
+                        Console.ResetColor();
+                        issuesFound = true;
+                    }
+                    Console.WriteLine($"    - {procName}.exe ({processes.Length} instancias)");
+                }
+            }
+
+            if (issuesFound)
+            {
+                Console.Write("\n¿Desea que el instalador cierre estos procesos automáticamente? (S/N): ");
+                var key = Console.ReadKey();
+                Console.WriteLine();
+                if (key.KeyChar == 'S' || key.KeyChar == 's')
+                {
+                    foreach (var procName in blockingProcesses)
+                    {
+                        foreach (var process in Process.GetProcessesByName(procName))
+                        {
+                            try { process.Kill(); process.WaitForExit(3000); } catch { }
+                        }
+                    }
+                    Console.WriteLine("Procesos terminados.");
+                    // Pequeña espera para asegurar que los archivos fueron liberados por el SO
+                    Thread.Sleep(1000);
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\nInstalación abortada. Por favor cierre AutoCAD manualmente antes de continuar.");
+                    Console.ResetColor();
+                    Environment.Exit(1);
+                }
             }
         }
 
