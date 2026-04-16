@@ -1,6 +1,6 @@
 {
   "version": "1.3.2",
   "releaseDate": "2026-04-16",
-  "releaseNotes": "v1.3.2: Fix descubrimiento de archivos dentro de proyectos. Auto-reconciliación de metadata tras restart del servidor. Plugin ahora filtra archivos por contexto de proyecto activo.",
+  "releaseNotes": "v1.3.2: Archivos visibles en carpetas de proyecto. Movimiento físico en Drive al reasignar. Tamaños visibles en web. Nuevo comando CADSYNC_MERGE_PROJECT para fusionar todas las capas.",
   "downloadUrl": "https://github.com/AAD002-Dwg/SYNC-CAD/releases/latest/download/CadSyncInstaller.zip"
 }

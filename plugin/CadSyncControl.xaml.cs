@@ -226,17 +226,22 @@ namespace CadSyncPlugin
                 if (response.IsSuccessStatusCode)
                 {
                     var json  = await response.Content.ReadAsStringAsync();
-                    var files = JsonConvert.DeserializeObject<List<string>>(json);
+                    // API now returns objects {name, size, modified, ...}
+                    var fileObjects = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(json);
                     Dispatcher.Invoke(() =>
                     {
                         FileCombo.Items.Clear();
-                        if (files != null)
-                            foreach (var f in files) FileCombo.Items.Add(f);
+                        if (fileObjects != null)
+                            foreach (var f in fileObjects)
+                            {
+                                string name = f.ContainsKey("name") ? f["name"]?.ToString() : f.ToString();
+                                if (!string.IsNullOrEmpty(name)) FileCombo.Items.Add(name);
+                            }
                         if (FileCombo.Items.Count > 0) FileCombo.SelectedIndex = 0;
 
                         // Show project context in log (only once on first load)
-                        if (!string.IsNullOrEmpty(projectId) && files?.Count > 0)
-                            AddLog($"📁 Mostrando {files.Count} archivo(s) del proyecto activo.");
+                        if (!string.IsNullOrEmpty(projectId) && fileObjects?.Count > 0)
+                            AddLog($"📁 Mostrando {fileObjects.Count} archivo(s) del proyecto activo.");
                     });
                 }
                 else

@@ -237,4 +237,35 @@ async function listAllFilesRecursive(rootFolderId, studioRefreshToken = null) {
     return allFiles;
 }
 
-module.exports = { uploadFile, downloadFile, listFiles, createFolder, listFolders, listAllFilesRecursive };
+/**
+ * Mueve un archivo de una carpeta a otra en Google Drive.
+ */
+async function moveFile(fileId, newParentId, studioRefreshToken = null) {
+    const drive = await getDriveService(studioRefreshToken);
+    if (!drive) throw new Error('Google Drive no configurado');
+
+    // 1. Obtener los padres actuales para poder eliminarlos
+    const file = await drive.files.get({
+        fileId: fileId,
+        fields: 'parents'
+    });
+    const previousParents = (file.data.parents || []).join(',');
+
+    // 2. Mover el archivo (añadir nuevo padre y quitar los antiguos)
+    return drive.files.update({
+        fileId: fileId,
+        addParents: newParentId,
+        removeParents: previousParents,
+        fields: 'id, parents'
+    });
+}
+
+module.exports = { 
+    uploadFile, 
+    downloadFile, 
+    listFiles, 
+    createFolder, 
+    listFolders, 
+    listAllFilesRecursive,
+    moveFile 
+};

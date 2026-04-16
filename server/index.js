@@ -257,12 +257,12 @@ app.get('/api/files', requireStudio, async (req, res) => {
         if (projectId) {
             // List files in a specific project folder
             const files = await driveService.listFiles(projectId, req.studio.refreshToken);
-            return res.json(files.map(f => f.name));
+            return res.json(files);
         }
 
         // No projectId: list ALL files (root + all project subfolders)
         const allFiles = await driveService.listAllFilesRecursive(rootFolderId, req.studio.refreshToken);
-        res.json(allFiles.map(f => f.name));
+        res.json(allFiles);
     } catch (err) {
         console.error('Error listado Drive:', err);
         res.status(500).json({ error: 'Error al listar archivos de Drive' });
@@ -492,14 +492,44 @@ app.get('/api/files/meta', requireStudio, async (req, res) => {
     res.json(data.fileMeta ?? {});
 });
 
-app.post('/api/files/meta', requireStudio, (req, res) => {
+app.post('/api/files/meta', requireStudio, async (req, res) => {
     const { filename, projectId } = req.body;
     if (!filename) return res.status(400).json({ error: 'filename requerido' });
     const data = loadData(req.studioId);
     if (!data.fileMeta) data.fileMeta = {};
+
+    const oldMeta = data.fileMeta[filename] ?? {};
+    const oldProjectId = oldMeta.projectId || null;
+    const newProjectId = projectId || null;
+
+    // ── Move file in Drive if project changed ──
+    if (oldProjectId !== newProjectId) {
+        try {
+            const rootFolderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+            let driveFileId = oldMeta.driveFileId;
+
+            // Fallback: search by name if driveFileId is missing
+            if (!driveFileId) {
+                const searchFolder = oldProjectId || rootFolderId;
+                const files = await driveService.listFiles(searchFolder, req.studio.refreshToken);
+                const found = files.find(f => f.name === filename);
+                if (found) driveFileId = found.id;
+            }
+
+            if (driveFileId) {
+                const targetFolder = newProjectId || rootFolderId;
+                await driveService.moveFile(driveFileId, targetFolder, req.studio.refreshToken);
+                console.log(`[MOVE] ${filename} → carpeta ${targetFolder}`);
+            }
+        } catch (err) {
+            console.error(`[MOVE] Error moviendo ${filename}:`, err.message);
+            // Continue saving meta even if move fails
+        }
+    }
+
     data.fileMeta[filename] = {
-        ...(data.fileMeta[filename] ?? {}),
-        projectId: projectId ?? null
+        ...oldMeta,
+        projectId: newProjectId
     };
     saveData(req.studioId, data);
     res.json({ ok: true });

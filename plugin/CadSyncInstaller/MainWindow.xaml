@@ -94,7 +94,7 @@
                         CornerRadius="6"
                         Padding="10,5"
                         VerticalAlignment="Center">
-                    <TextBlock Text="v1.3.0"
+                    <TextBlock Text="v1.3.2"
                                FontSize="12" FontWeight="SemiBold"
                                Foreground="{StaticResource AccentBrush}"/>
                 </Border>
@@ -312,7 +312,7 @@
                 BorderThickness="0,1,0,0">
             <Grid Margin="28,0">
                 <!-- Texto de copyright -->
-                <TextBlock Text="AAD002 Studio · SYNC-CAD v1.3.0"
+                <TextBlock Text="AAD002 Studio · SYNC-CAD v1.3.2"
                            FontSize="11"
                            Foreground="{StaticResource TextMutedBrush}"
                            VerticalAlignment="Center"/>

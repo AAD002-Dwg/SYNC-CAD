@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { Download, Upload, FileCode2, RefreshCw, Tag } from 'lucide-react';
+import { Download, Upload, FileCode2, RefreshCw, Tag, HardDrive } from 'lucide-react';
 import axios from 'axios';
 import { API_URL } from '../App';
+
+// ── Helpers ───────────────────────────────────────────
+function formatBytes(bytes) {
+  if (!bytes || bytes === '0') return '—';
+  const b = parseInt(bytes, 10);
+  if (isNaN(b) || b === 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(b) / Math.log(1024));
+  return `${(b / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
 
 export default function FilesPage() {
   const [files,    setFiles]    = useState([]);
@@ -165,8 +175,9 @@ export default function FilesPage() {
           <div style={{ overflowX: 'auto' }}>
             <table className="ad-table">
               <thead>
-                <tr>
+              <tr>
                   <th>Archivo</th>
+                  <th>Tamaño</th>
                   <th>Proyecto</th>
                   <th>Subido por</th>
                   <th>Fecha</th>
@@ -174,7 +185,10 @@ export default function FilesPage() {
                 </tr>
               </thead>
               <tbody>
-                {files.map(filename => {
+                {files.map(fileObj => {
+                  // Support both old (string) and new (object) formats
+                  const filename = typeof fileObj === 'string' ? fileObj : fileObj.name;
+                  const fileSize = typeof fileObj === 'object' ? fileObj.size : null;
                   const meta = fileMeta[filename] ?? {};
                   const proj = projects.find(p => p.id === meta.projectId);
 
@@ -188,6 +202,11 @@ export default function FilesPage() {
                             {filename}
                           </span>
                         </div>
+                      </td>
+
+                      {/* Size */}
+                      <td style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>
+                        {formatBytes(fileSize)}
                       </td>
 
                       {/* Project — inline select to reassign */}
