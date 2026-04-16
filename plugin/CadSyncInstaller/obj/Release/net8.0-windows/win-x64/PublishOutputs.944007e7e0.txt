@@ -1,2 +1,0 @@
-G:\SYNC-CAD\plugin\dist\InstalarCadSync.pdb
-G:\SYNC-CAD\plugin\dist\InstalarCadSync.exe
