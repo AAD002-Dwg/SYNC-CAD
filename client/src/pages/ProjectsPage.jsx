@@ -134,7 +134,10 @@ export default function ProjectsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-lg)' }}>
           {projects.map(p => {
-            const projectFiles = files.filter(f => fileMeta[f]?.projectId === p.id);
+            const projectFiles = files.filter(f => {
+              const filename = typeof f === 'string' ? f : f.name;
+              return fileMeta[filename]?.projectId === p.id;
+            });
             return (
               <div key={p.id} className="ad-card animate-in" style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--sp-md)', borderBottom: '1px solid var(--border)' }}>
@@ -172,12 +175,15 @@ export default function ProjectsPage() {
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {projectFiles.map(f => (
-                        <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--bg-main)', borderRadius: 'var(--radius-base)', border: '1px solid var(--border)' }}>
-                          <FileCode2 size={14} style={{ color: p.color }} />
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>{f}</span>
-                        </div>
-                      ))}
+                      {projectFiles.map(f => {
+                        const filename = typeof f === 'string' ? f : f.name;
+                        return (
+                          <div key={filename} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--bg-main)', borderRadius: 'var(--radius-base)', border: '1px solid var(--border)' }}>
+                            <FileCode2 size={14} style={{ color: p.color }} />
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>{filename}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

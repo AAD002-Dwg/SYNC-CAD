@@ -483,10 +483,11 @@ app.delete('/api/projects/:id', requireStudio, (req, res) => {
 app.get('/api/files/meta', requireStudio, async (req, res) => {
     let data = loadData(req.studioId);
 
-    // Auto-reconcile: if fileMeta is empty, rebuild from Drive
+    // Auto-reconcile: if fileMeta is empty, rebuild from Drive (in background)
     if (!data.fileMeta || Object.keys(data.fileMeta).length === 0) {
-        await reconcileFileMeta(req.studioId, req.studio.refreshToken);
-        data = loadData(req.studioId);
+        console.log(`[RECONCILE] Iniciando reconciliación en background para studio ${req.studioId}...`);
+        reconcileFileMeta(req.studioId, req.studio.refreshToken);
+        // We don't wait for it to finish, return empty/cached meta for now
     }
 
     res.json(data.fileMeta ?? {});

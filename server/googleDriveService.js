@@ -228,9 +228,14 @@ async function listAllFilesRecursive(rootFolderId, studioRefreshToken = null) {
     // 2. Subcarpetas (proyectos)
     const folders = await listFolders(rootFolderId, studioRefreshToken);
     for (const folder of folders) {
-        const folderFiles = await listFiles(folder.id, studioRefreshToken);
-        for (const f of folderFiles) {
-            allFiles.push({ ...f, parentFolderId: folder.id });
+        try {
+            const folderFiles = await listFiles(folder.id, studioRefreshToken);
+            for (const f of folderFiles) {
+                allFiles.push({ ...f, parentFolderId: folder.id });
+            }
+        } catch (err) {
+            console.error(`[DRIVE] Error listando carpeta proyecto ${folder.name} (${folder.id}):`, err.message);
+            // Seguir con el siguiente proyecto
         }
     }
 
