@@ -85,24 +85,33 @@ async function reconcileFileMeta(studioId, refreshToken) {
         if (!data.fileMeta) data.fileMeta = {};
 
         let added = 0;
+        let updated = 0;
         for (const f of allFiles) {
+            const currentProjectId = f.parentFolderId === rootFolderId ? null : f.parentFolderId;
+            
             if (!data.fileMeta[f.name]) {
                 data.fileMeta[f.name] = {
-                    projectId: f.parentFolderId === rootFolderId ? null : f.parentFolderId,
+                    projectId: currentProjectId,
                     driveFileId: f.id,
                     discoveredAt: new Date().toISOString()
                 };
                 added++;
-            } else if (!data.fileMeta[f.name].projectId && f.parentFolderId !== rootFolderId) {
-                // File exists in meta but missing project link — fix it
-                data.fileMeta[f.name].projectId = f.parentFolderId;
-                added++;
+            } else if (data.fileMeta[f.name].projectId !== currentProjectId) {
+                // File moved in Drive — update our records
+                const oldProj = data.fileMeta[f.name].projectId;
+                data.fileMeta[f.name].projectId = currentProjectId;
+                // Preserve other meta like driveFileId if it was missing
+                if (!data.fileMeta[f.name].driveFileId) {
+                    data.fileMeta[f.name].driveFileId = f.id;
+                }
+                updated++;
+                console.log(`[RECONCILE] ${f.name} movido: ${oldProj || 'root'} -> ${currentProjectId || 'root'}`);
             }
         }
 
-        if (added > 0) {
+        if (added > 0 || updated > 0) {
             saveData(studioId, data);
-            console.log(`[RECONCILE] Studio ${studioId}: ${added} archivos descubiertos/actualizados en Drive.`);
+            console.log(`[RECONCILE] Studio ${studioId}: ${added} nuevos, ${updated} movidos.`);
         }
     } catch (err) {
         console.error(`[RECONCILE] Error para studio ${studioId}:`, err.message);
@@ -252,17 +261,40 @@ app.get('/api/files', requireStudio, async (req, res) => {
         const rootFolderId = req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
         if (!rootFolderId) return res.json([]);
 
+        const appData = loadData(req.studioId);
+        const meta = appData.fileMeta || {};
         const projectId = req.query.projectId;
 
         if (projectId) {
             // List files in a specific project folder
             const files = await driveService.listFiles(projectId, req.studio.refreshToken);
-            return res.json(files);
+            const enriched = files.map(f => ({ ...f, meta: meta[f.name] || null }));
+            return res.json(enriched);
         }
 
         // No projectId: list ALL files (root + all project subfolders)
         const allFiles = await driveService.listAllFilesRecursive(rootFolderId, req.studio.refreshToken);
-        res.json(allFiles);
+        
+        // Lazy reconciliation: update meta if location changed in Drive
+        let changed = false;
+        const enrichedAll = allFiles.map(f => {
+            const currentProjectId = f.parentFolderId === rootFolderId ? null : f.parentFolderId;
+            const fileMeta = meta[f.name];
+            
+            if (fileMeta && fileMeta.projectId !== currentProjectId) {
+                fileMeta.projectId = currentProjectId;
+                changed = true;
+            }
+
+            return { ...f, meta: fileMeta || null };
+        });
+
+        if (changed) {
+            saveData(req.studioId, appData);
+            console.log(`[LAZY-RECONCILE] Studio ${req.studioId}: Ubicaciones actualizadas al listar.`);
+        }
+
+        res.json(enrichedAll);
     } catch (err) {
         console.error('Error listado Drive:', err);
         res.status(500).json({ error: 'Error al listar archivos de Drive' });
@@ -388,8 +420,16 @@ app.get('/api/version', (req, res) => {
 // ── API: Download ─────────────────────────────────────────────
 app.get('/api/download/:filename', requireStudio, async (req, res) => {
     try {
-        const folderId = req.query.projectId || req.studio.folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
         const filename = req.params.filename;
+        const appData = loadData(req.studioId);
+        const meta = appData.fileMeta?.[filename];
+        
+        // Prioritize query param, then cached meta, then root folder
+        const folderId = req.query.projectId 
+            || meta?.projectId 
+            || req.studio.folderId 
+            || process.env.GOOGLE_DRIVE_FOLDER_ID;
+
         const stream = await driveService.downloadFile(filename, folderId, req.studio.refreshToken);
         res.setHeader('Content-disposition', 'attachment; filename=' + filename);
         res.setHeader('Content-type', 'application/octet-stream');

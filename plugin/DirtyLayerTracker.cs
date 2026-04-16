@@ -19,6 +19,28 @@ namespace CadSyncPlugin
         private System.Timers.Timer? _debounceTimer;
         private Database? _attachedDb;
         private bool _disposed;
+        private bool _suspended;
+
+        /// <summary>
+        /// Cuando es true, el tracker ignora todos los cambios en la base de datos.
+        /// Útil para evitar bucles durante operaciones masivas (Pull/Merge).
+        /// </summary>
+        public bool Suspended
+        {
+            get => _suspended;
+            set
+            {
+                _suspended = value;
+                if (value)
+                {
+                    lock (_lock)
+                    {
+                        _dirtyLayers.Clear();
+                        _debounceTimer?.Stop();
+                    }
+                }
+            }
+        }
 
         // Tiempo de espera tras el último cambio antes de notificar (ms)
         private const int DebounceMs = 3000;
@@ -47,6 +69,7 @@ namespace CadSyncPlugin
 
         private void OnObjectChanged(object sender, ObjectEventArgs e)
         {
+            if (_suspended) return;
             // Solo nos interesan entidades (geometría), no registros de tabla
             if (e.DBObject is not Entity ent) return;
 

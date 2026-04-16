@@ -99,16 +99,9 @@ namespace CadSyncPlugin
         {
             Dispatcher.Invoke(() =>
             {
-                var color = connected
-                    ? Color.FromRgb(0x4C, 0xAF, 0x50)  // #4CAF50 success
-                    : Color.FromRgb(0xF4, 0x43, 0x36);  // #F44336 error
-
-                StatusDotFill.Color  = color;
-                StatusGlow.Color     = color;
-                StatusText.Text      = connected ? "Online" : "Offline";
-                StatusText.Foreground = connected
-                    ? (Brush)Resources["SuccessColor"]
-                    : (Brush)Resources["ErrorColor"];
+                // La barra superior ha sido simplificada. Registramos el estado en el log
+                // y podríamos cambiar el color de algún icono de la toolbar si fuera necesario.
+                AddLog(connected ? "Sistema ONLINE" : "Sistema OFFLINE — Reintentando...");
             });
         }
 
@@ -202,6 +195,8 @@ namespace CadSyncPlugin
             _   => "#8A91A1"
         };
 
+        private List<Dictionary<string, object>> _currentFiles = new();
+
         // ── File List ─────────────────────────────────────────
         public async Task RefreshFiles()
         {
@@ -226,22 +221,27 @@ namespace CadSyncPlugin
                 if (response.IsSuccessStatusCode)
                 {
                     var json  = await response.Content.ReadAsStringAsync();
-                    // API now returns objects {name, size, modified, ...}
                     var fileObjects = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(json);
+                    
                     Dispatcher.Invoke(() =>
                     {
                         FileCombo.Items.Clear();
-                        if (fileObjects != null)
-                            foreach (var f in fileObjects)
-                            {
-                                string name = f.ContainsKey("name") ? f["name"]?.ToString() : f.ToString();
-                                if (!string.IsNullOrEmpty(name)) FileCombo.Items.Add(name);
-                            }
+                        _currentFiles = fileObjects ?? new List<Dictionary<string, object>>();
+
+                        foreach (var f in _currentFiles)
+                        {
+                            string name = f.ContainsKey("name") ? f["name"]?.ToString() : "Sin nombre";
+                            
+                            // Check if it's a layer delta
+                            bool wasDelta = f.ContainsKey("meta") && f["meta"] is Newtonsoft.Json.Linq.JObject meta && meta["layer"] != null;
+                            if (wasDelta) name += " (capa)";
+
+                            FileCombo.Items.Add(name);
+                        }
                         if (FileCombo.Items.Count > 0) FileCombo.SelectedIndex = 0;
 
-                        // Show project context in log (only once on first load)
-                        if (!string.IsNullOrEmpty(projectId) && fileObjects?.Count > 0)
-                            AddLog($"📁 Mostrando {fileObjects.Count} archivo(s) del proyecto activo.");
+                        if (!string.IsNullOrEmpty(projectId) && _currentFiles.Count > 0)
+                            AddLog($"📁 Mostrando {_currentFiles.Count} archivo(s) del proyecto activo.");
                     });
                 }
                 else
@@ -304,11 +304,20 @@ namespace CadSyncPlugin
 
         private void BtnPull_Click(object sender, RoutedEventArgs e)
         {
-            if (FileCombo.SelectedItem == null) return;
-            string fileName = FileCombo.SelectedItem.ToString()!;
+            if (FileCombo.SelectedIndex < 0 || FileCombo.SelectedIndex >= _currentFiles.Count) return;
+            var fileObj = _currentFiles[FileCombo.SelectedIndex];
+            string fileName = fileObj["name"]?.ToString() ?? "";
+            
+            // Check if it's explicitly a layer delta via metadata
+            bool isLayerDelta = false;
+            if (fileObj.TryGetValue("meta", out var metaObj) && metaObj is Newtonsoft.Json.Linq.JToken meta)
+            {
+                isLayerDelta = meta["layer"] != null;
+            }
+
             AddLog($"Descargando {fileName}...");
 
-            if (fileName.EndsWith(".dwg", StringComparison.OrdinalIgnoreCase))
+            if (isLayerDelta && fileName.EndsWith(".dwg", StringComparison.OrdinalIgnoreCase))
             {
                 string layer = System.IO.Path.GetFileNameWithoutExtension(fileName);
                 Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
@@ -317,6 +326,7 @@ namespace CadSyncPlugin
             }
             else
             {
+                // It's a full DWG or other file type -> Download to Desktop
                 Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
                     .MdiActiveDocument.SendStringToExecute(
                         $"CADSYNC_PULL_UI\n{fileName}\n", true, false, false);
@@ -375,7 +385,8 @@ namespace CadSyncPlugin
     public class ConnectedUser
     {
         public string Name     { get; set; } = "";
-        /// <summary>Hex string ("#RRGGBB") for WPF Color binding.</summary>
         public string ColorHex { get; set; } = "#8A91A1";
+        
+        public Brush ColorBrush => new SolidColorBrush((Color)ColorConverter.ConvertFromString(ColorHex));
     }
 }

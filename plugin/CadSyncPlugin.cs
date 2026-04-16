@@ -60,7 +60,8 @@ namespace CadSyncPlugin
                 // Habilitar compatibilidad TLS 1.2 necesaria para AutoCAD 2022 / .NET 4.8
                 ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
 
-                Application.Idle += (s, e) => ShowPalette();
+                // Solo mostramos la paleta si es necesario o por comando explicito.
+                // AutoCAD recuerda el estado de visibilidad de la paleta entre sesiones si se usa el Guid correcto.
                 Application.DocumentManager.DocumentActivated += (s, e) => AttachDocEvents(e.Document);
                 if (Application.DocumentManager.MdiActiveDocument != null)
                     AttachDocEvents(Application.DocumentManager.MdiActiveDocument);
@@ -755,6 +756,10 @@ namespace CadSyncPlugin
 
         public static async Task ExecuteMergeDelta(Document doc, string layerName)
         {
+            var tracker = PluginMain.GetDirtyTracker();
+            bool wasSuspended = tracker.Suspended;
+            tracker.Suspended = true;
+
             try
             {
                 string encoded = Uri.EscapeDataString($"{layerName}.dwg");
@@ -833,6 +838,10 @@ namespace CadSyncPlugin
             catch (System.Exception ex)
             {
                 Application.ShowAlertDialog($"Error al fusionar capa {layerName}:\n{ex.Message}");
+            }
+            finally
+            {
+                tracker.Suspended = wasSuspended;
             }
         }
 
@@ -996,110 +1005,125 @@ namespace CadSyncPlugin
                 var dwgFiles = fileObjects.FindAll(f =>
                     f.ContainsKey("name") && f["name"].ToString().EndsWith(".dwg", StringComparison.OrdinalIgnoreCase));
 
-                ed.WriteMessage($"\n[CADSYNC] {dwgFiles.Count} archivos DWG encontrados. Fusionando...");
-                int merged = 0;
-                int errors = 0;
+                var tracker = PluginMain.GetDirtyTracker();
+                bool wasSuspended = tracker.Suspended;
+                tracker.Suspended = true;
 
-                foreach (var fileObj in dwgFiles)
+                try
                 {
-                    string filename = fileObj["name"].ToString();
-                    string layerName = Path.GetFileNameWithoutExtension(filename);
+                    ed.WriteMessage($"\n[CADSYNC] {dwgFiles.Count} archivos DWG encontrados. Fusionando...");
+                    int merged = 0;
+                    int errors = 0;
 
-                    PluginMain.MyControl?.AddLog($"  ↓ Descargando: {filename} ({merged + 1}/{dwgFiles.Count})");
-                    ed.WriteMessage($"\n  [{merged + 1}/{dwgFiles.Count}] {filename}...");
-
-                    try
+                    foreach (var fileObj in dwgFiles)
                     {
-                        // Download the file
-                        string encoded = Uri.EscapeDataString(filename);
-                        string url = $"{_config.ServerUrl}/api/download/{encoded}?projectId={Uri.EscapeDataString(projectId)}";
-                        var dlResponse = await GetAsync(url);
+                        string filename = fileObj["name"].ToString();
+                        string layerName = Path.GetFileNameWithoutExtension(filename);
 
-                        if (!dlResponse.IsSuccessStatusCode)
+                        PluginMain.MyControl?.AddLog($"  ↓ Descargando: {filename} ({merged + 1}/{dwgFiles.Count})");
+                        ed.WriteMessage($"\n  [{merged + 1}/{dwgFiles.Count}] {filename}...");
+
+                        try
                         {
-                            ed.WriteMessage(" ✗ Error descarga");
-                            errors++;
-                            continue;
-                        }
+                            // Download the file
+                            string encoded = Uri.EscapeDataString(filename);
+                            string url = $"{_config.ServerUrl}/api/download/{encoded}?projectId={Uri.EscapeDataString(projectId)}";
+                            var dlResponse = await GetAsync(url);
 
-                        string tempPath = Path.Combine(Path.GetTempPath(),
-                            $"merge_{Guid.NewGuid().ToString().Substring(0, 8)}.dwg");
-                        using (var fs = new FileStream(tempPath, FileMode.Create))
-                            await dlResponse.Content.CopyToAsync(fs);
-
-                        // Merge into current drawing
-                        var db = doc.Database;
-                        using (doc.LockDocument())
-                        using (var tr = db.TransactionManager.StartTransaction())
-                        {
-                            // Ensure layer exists
-                            var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
-                            if (!lt.Has(layerName))
+                            if (!dlResponse.IsSuccessStatusCode)
                             {
-                                lt.UpgradeOpen();
-                                var ltr = new LayerTableRecord { Name = layerName };
-                                lt.Add(ltr);
-                                tr.AddNewlyCreatedDBObject(ltr, true);
+                                ed.WriteMessage(" ✗ Error descarga");
+                                errors++;
+                                continue;
                             }
 
-                            // Clear existing content on this layer
-                            var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-                            var ms = (BlockTableRecord)tr.GetObject(
-                                bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+                            string tempPath = Path.Combine(Path.GetTempPath(),
+                                $"merge_{Guid.NewGuid().ToString().Substring(0, 8)}.dwg");
+                            using (var fs = new FileStream(tempPath, FileMode.Create))
+                                await dlResponse.Content.CopyToAsync(fs);
 
-                            foreach (ObjectId id in ms)
+                            // Merge into current drawing
+                            var db = doc.Database;
+                            using (doc.LockDocument())
+                            using (var tr = db.TransactionManager.StartTransaction())
                             {
-                                var ent = (Entity)tr.GetObject(id, OpenMode.ForRead);
-                                if (string.Equals(ent.Layer, layerName, StringComparison.OrdinalIgnoreCase))
+                                // Ensure layer exists
+                                var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+                                if (!lt.Has(layerName))
                                 {
-                                    tr.GetObject(id, OpenMode.ForWrite);
-                                    ent.Erase();
+                                    lt.UpgradeOpen();
+                                    var ltr = new LayerTableRecord { Name = layerName };
+                                    lt.Add(ltr);
+                                    tr.AddNewlyCreatedDBObject(ltr, true);
                                 }
+
+                                // Clear existing content on this layer
+                                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                                var ms = (BlockTableRecord)tr.GetObject(
+                                    bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+
+                                foreach (ObjectId id in ms)
+                                {
+                                    var ent = (Entity)tr.GetObject(id, OpenMode.ForRead);
+                                    if (string.Equals(ent.Layer, layerName, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        tr.GetObject(id, OpenMode.ForWrite);
+                                        ent.Erase();
+                                    }
+                                }
+
+                                // Clone from downloaded DWG
+                                using var sideDb = new Database(false, true);
+                                sideDb.ReadDwgFile(tempPath, FileShare.Read, true, "");
+                                var idsToClone = new ObjectIdCollection();
+                                using (var trSide = sideDb.TransactionManager.StartTransaction())
+                                {
+                                    var btSide = (BlockTable)trSide.GetObject(
+                                        sideDb.BlockTableId, OpenMode.ForRead);
+                                    var msSide = (BlockTableRecord)trSide.GetObject(
+                                        btSide[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                                    foreach (ObjectId id in msSide)
+                                        idsToClone.Add(id);
+                                    trSide.Commit();
+                                }
+
+                                var idMap = new IdMapping();
+                                db.WblockCloneObjects(idsToClone, ms.ObjectId, idMap,
+                                    DuplicateRecordCloning.Replace, false);
+
+                                tr.Commit();
                             }
 
-                            // Clone from downloaded DWG
-                            using var sideDb = new Database(false, true);
-                            sideDb.ReadDwgFile(tempPath, FileShare.Read, true, "");
-                            var idsToClone = new ObjectIdCollection();
-                            using (var trSide = sideDb.TransactionManager.StartTransaction())
-                            {
-                                var btSide = (BlockTable)trSide.GetObject(
-                                    sideDb.BlockTableId, OpenMode.ForRead);
-                                var msSide = (BlockTableRecord)trSide.GetObject(
-                                    btSide[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-                                foreach (ObjectId id in msSide)
-                                    idsToClone.Add(id);
-                                trSide.Commit();
-                            }
-
-                            var idMap = new IdMapping();
-                            db.WblockCloneObjects(idsToClone, ms.ObjectId, idMap,
-                                DuplicateRecordCloning.Replace, false);
-
-                            tr.Commit();
+                            try { File.Delete(tempPath); } catch { }
+                            merged++;
+                            ed.WriteMessage(" ✓");
                         }
+                        catch (System.Exception ex)
+                        {
+                            ed.WriteMessage($" ✗ {ex.Message}");
+                            errors++;
+                        }
+                    }
 
-                        try { File.Delete(tempPath); } catch { }
-                        merged++;
-                        ed.WriteMessage(" ✓");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        ed.WriteMessage($" ✗ {ex.Message}");
-                        errors++;
-                    }
+                    doc.Editor.Regen();
+                    string summary = $"\n[CADSYNC] Merge completado: {merged} capa(s) fusionadas.";
+                    if (errors > 0) summary += $" {errors} error(es).";
+                    ed.WriteMessage(summary);
+                    PluginMain.MyControl?.AddLog($"✅ Merge: {merged}/{dwgFiles.Count} capas fusionadas.");
                 }
-
-                doc.Editor.Regen();
-                string summary = $"\n[CADSYNC] Merge completado: {merged} capa(s) fusionadas.";
-                if (errors > 0) summary += $" {errors} error(es).";
-                ed.WriteMessage(summary);
-                PluginMain.MyControl?.AddLog($"✅ Merge: {merged}/{dwgFiles.Count} capas fusionadas.");
+                catch (System.Exception ex)
+                {
+                    ed.WriteMessage($"\n[CADSYNC] Error crítico: {ex.Message}");
+                    PluginMain.MyControl?.AddLog($"❌ Error en merge: {ex.Message}");
+                }
+                finally
+                {
+                    tracker.Suspended = wasSuspended;
+                }
             }
             catch (System.Exception ex)
             {
-                ed.WriteMessage($"\n[CADSYNC] Error crítico: {ex.Message}");
-                PluginMain.MyControl?.AddLog($"❌ Error en merge: {ex.Message}");
+                ed.WriteMessage($"\n[CADSYNC] Error crítico externo: {ex.Message}");
             }
         }
     }

@@ -1,0 +1,291 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "CadSyncPlugin/1.0.0": {
+        "dependencies": {
+          "AutoCAD.NET": "25.0.1",
+          "Newtonsoft.Json": "13.0.3",
+          "SocketIOClient": "3.1.1",
+          "SocketIOClient.Newtonsoft.Json": "3.0.7"
+        },
+        "runtime": {
+          "CadSyncPlugin.dll": {}
+        }
+      },
+      "AutoCAD.NET/25.0.1": {
+        "dependencies": {
+          "AutoCAD.NET.Core": "25.0.0"
+        },
+        "runtime": {
+          "lib/net8.0/AcCui.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AcDx.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AcMgd.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AcMr.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AcSeamless.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AcTcMgd.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AcWindows.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AdUIMgd.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AdUiPalettes.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/AdWindows.dll": {
+            "assemblyVersion": "5.1.1.1",
+            "fileVersion": "5.1.1.1"
+          }
+        }
+      },
+      "AutoCAD.NET.Core/25.0.0": {
+        "dependencies": {
+          "AutoCAD.NET.Model": "25.0.0"
+        },
+        "runtime": {
+          "lib/net8.0/AcCoreMgd.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          }
+        }
+      },
+      "AutoCAD.NET.Model/25.0.0": {
+        "runtime": {
+          "lib/net8.0/AcDbMgd.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          },
+          "lib/net8.0/acdbmgdbrep.dll": {
+            "assemblyVersion": "25.0.0.0",
+            "fileVersion": "25.0.58.0"
+          }
+        }
+      },
+      "Microsoft.NETCore.Platforms/1.1.0": {},
+      "Microsoft.NETCore.Targets/1.1.0": {},
+      "Newtonsoft.Json/13.0.3": {
+        "runtime": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
+            "assemblyVersion": "13.0.0.0",
+            "fileVersion": "13.0.3.27908"
+          }
+        }
+      },
+      "SocketIO.Core/3.1.1": {
+        "runtime": {
+          "lib/netstandard2.0/SocketIO.Core.dll": {
+            "assemblyVersion": "3.1.1.0",
+            "fileVersion": "3.1.1.0"
+          }
+        }
+      },
+      "SocketIO.Serializer.Core/3.1.1": {
+        "dependencies": {
+          "SocketIO.Core": "3.1.1"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SocketIO.Serializer.Core.dll": {
+            "assemblyVersion": "3.1.1.0",
+            "fileVersion": "3.1.1.0"
+          }
+        }
+      },
+      "SocketIO.Serializer.SystemTextJson/3.1.1": {
+        "dependencies": {
+          "SocketIO.Core": "3.1.1",
+          "SocketIO.Serializer.Core": "3.1.1",
+          "System.Text.Json": "7.0.3"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SocketIO.Serializer.SystemTextJson.dll": {
+            "assemblyVersion": "3.1.1.0",
+            "fileVersion": "3.1.1.0"
+          }
+        }
+      },
+      "SocketIOClient/3.1.1": {
+        "dependencies": {
+          "SocketIO.Serializer.Core": "3.1.1",
+          "SocketIO.Serializer.SystemTextJson": "3.1.1",
+          "System.Collections": "4.3.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SocketIOClient.dll": {
+            "assemblyVersion": "3.1.1.0",
+            "fileVersion": "3.1.1.0"
+          }
+        }
+      },
+      "SocketIOClient.Newtonsoft.Json/3.0.7": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3",
+          "SocketIOClient": "3.1.1",
+          "System.Text.Json": "7.0.3"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SocketIOClient.Newtonsoft.Json.dll": {
+            "assemblyVersion": "3.0.7.0",
+            "fileVersion": "3.0.7.0"
+          }
+        }
+      },
+      "System.Collections/4.3.0": {
+        "dependencies": {
+          "Microsoft.NETCore.Platforms": "1.1.0",
+          "Microsoft.NETCore.Targets": "1.1.0",
+          "System.Runtime": "4.3.0"
+        }
+      },
+      "System.Runtime/4.3.0": {
+        "dependencies": {
+          "Microsoft.NETCore.Platforms": "1.1.0",
+          "Microsoft.NETCore.Targets": "1.1.0"
+        }
+      },
+      "System.Text.Encodings.Web/7.0.0": {},
+      "System.Text.Json/7.0.3": {
+        "dependencies": {
+          "System.Text.Encodings.Web": "7.0.0"
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CadSyncPlugin/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AutoCAD.NET/25.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-57MbBZyhQh6nM16w/tF88uXPUascZygGfYBzE9QsuaXjM/baPArjaTnAJmvfnkzgKLsXtZrJAzr2rCtxVygPiQ==",
+      "path": "autocad.net/25.0.1",
+      "hashPath": "autocad.net.25.0.1.nupkg.sha512"
+    },
+    "AutoCAD.NET.Core/25.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-jPwsZgVs+4xqXtMLWJjgb4WSSzbb7YGbgn/BqT7LGPRthQb/93CmRZyuSgfjjSK8EgL+YsfRuRYVvYNGHrw3TA==",
+      "path": "autocad.net.core/25.0.0",
+      "hashPath": "autocad.net.core.25.0.0.nupkg.sha512"
+    },
+    "AutoCAD.NET.Model/25.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XGKd/R/MZ5oHFEMOtxHh9L307ss6XSnW4S0JSC3UkRjvdgv8rTygXkqz+vGoRoUl8IWU/ooskfVT/qOikFfteA==",
+      "path": "autocad.net.model/25.0.0",
+      "hashPath": "autocad.net.model.25.0.0.nupkg.sha512"
+    },
+    "Microsoft.NETCore.Platforms/1.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kz0PEW2lhqygehI/d6XsPCQzD7ff7gUJaVGPVETX611eadGsA3A877GdSlU0LRVMCTH/+P3o2iDTak+S08V2+A==",
+      "path": "microsoft.netcore.platforms/1.1.0",
+      "hashPath": "microsoft.netcore.platforms.1.1.0.nupkg.sha512"
+    },
+    "Microsoft.NETCore.Targets/1.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-aOZA3BWfz9RXjpzt0sRJJMjAscAUm3Hoa4UWAfceV9UTYxgwZ1lZt5nO2myFf+/jetYQo4uTP7zS8sJY67BBxg==",
+      "path": "microsoft.netcore.targets/1.1.0",
+      "hashPath": "microsoft.netcore.targets.1.1.0.nupkg.sha512"
+    },
+    "Newtonsoft.Json/13.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ==",
+      "path": "newtonsoft.json/13.0.3",
+      "hashPath": "newtonsoft.json.13.0.3.nupkg.sha512"
+    },
+    "SocketIO.Core/3.1.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-L5GSyODDjlub5YdDxfsRtA9uxBNw1Hs/egEMhdOGFyD0c63VmvWQ1A4Gfc4GYKYInz1muP4C8QNblXErnUYDqA==",
+      "path": "socketio.core/3.1.1",
+      "hashPath": "socketio.core.3.1.1.nupkg.sha512"
+    },
+    "SocketIO.Serializer.Core/3.1.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-aFanlt2GOGEy7GTGLyh8f8SwhtmQwoPOHTAYCQ0brjg05Nb3F38sk4hYogpII5imyZ7w0spqwNHwpl7FZ49HOA==",
+      "path": "socketio.serializer.core/3.1.1",
+      "hashPath": "socketio.serializer.core.3.1.1.nupkg.sha512"
+    },
+    "SocketIO.Serializer.SystemTextJson/3.1.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1PKQ+hOAJ4l3ZXlrVgiB3uNY3kLhjzYjnxk/97V6npJrNmhq09Di2EQSpGweQMu6KPbOxjZ7eYVARkGTWIUsjg==",
+      "path": "socketio.serializer.systemtextjson/3.1.1",
+      "hashPath": "socketio.serializer.systemtextjson.3.1.1.nupkg.sha512"
+    },
+    "SocketIOClient/3.1.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-g8Lauia1Cj5DBXeC9j6vDSJeQEboGmXsnduW06VOBMe+UgqCrenxszYXJg19rAjwO10XRWQorOuU1XNMfYo8Xg==",
+      "path": "socketioclient/3.1.1",
+      "hashPath": "socketioclient.3.1.1.nupkg.sha512"
+    },
+    "SocketIOClient.Newtonsoft.Json/3.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-n2RMPeHyph8lNgLN376evkk3Qf0ws+MRxBQ4393IiEoxiF8BJC4w+fU/pqfBcB3dYvhbliVu4ICtlEar9bvJVw==",
+      "path": "socketioclient.newtonsoft.json/3.0.7",
+      "hashPath": "socketioclient.newtonsoft.json.3.0.7.nupkg.sha512"
+    },
+    "System.Collections/4.3.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-3Dcj85/TBdVpL5Zr+gEEBUuFe2icOnLalmEh9hfck1PTYbbyWuZgh4fmm2ysCLTrqLQw6t3TgTyJ+VLp+Qb+Lw==",
+      "path": "system.collections/4.3.0",
+      "hashPath": "system.collections.4.3.0.nupkg.sha512"
+    },
+    "System.Runtime/4.3.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-JufQi0vPQ0xGnAczR13AUFglDyVYt4Kqnz1AZaiKZ5+GICq0/1MH/mO/eAJHt/mHW1zjKBJd7kV26SrxddAhiw==",
+      "path": "system.runtime/4.3.0",
+      "hashPath": "system.runtime.4.3.0.nupkg.sha512"
+    },
+    "System.Text.Encodings.Web/7.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-OP6umVGxc0Z0MvZQBVigj4/U31Pw72ITihDWP9WiWDm+q5aoe0GaJivsfYGq53o6dxH7DcXWiCTl7+0o2CGdmg==",
+      "path": "system.text.encodings.web/7.0.0",
+      "hashPath": "system.text.encodings.web.7.0.0.nupkg.sha512"
+    },
+    "System.Text.Json/7.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AyjhwXN1zTFeIibHimfJn6eAsZ7rTBib79JQpzg8WAuR/HKDu9JGNHTuu3nbbXQ/bgI+U4z6HtZmCHNXB1QXrQ==",
+      "path": "system.text.json/7.0.3",
+      "hashPath": "system.text.json.7.0.3.nupkg.sha512"
+    }
+  }
+}

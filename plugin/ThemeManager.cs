@@ -46,11 +46,12 @@ namespace CadSyncPlugin
         {
             var d = root.Resources;
 
-            // ── Backgrounds ──
-            Set(d, "BgMain",      IsDark ? "#1B1D23" : "#F0F2F5");
-            Set(d, "BgPanel",     IsDark ? "#21252B" : "#FFFFFF");
-            Set(d, "BgTertiary",  IsDark ? "#272C36" : "#E8EBF0");
-            Set(d, "BgDeep",      IsDark ? "#14161b" : "#E2E5EA");
+            // ── Backgrounds (Native AutoCAD Palette) ──
+            Set(d, "BgMain",      IsDark ? "#212121" : "#F0F2F5");
+            Set(d, "BgPanel",     IsDark ? "#2D2D2D" : "#FFFFFF");
+            Set(d, "BgHeader",    IsDark ? "#383838" : "#E8EBF0");
+            Set(d, "BgTertiary",  IsDark ? "#353535" : "#E8EBF0");
+            Set(d, "BgDeep",      IsDark ? "#1E1E1E" : "#E2E5EA");
 
             // ── Text ──
             Set(d, "TextMain",       IsDark ? "#D2D2D2" : "#1B1D23");
@@ -59,9 +60,9 @@ namespace CadSyncPlugin
             Set(d, "TextDisabled",   IsDark ? "#5A6170" : "#9AA0AD");
 
             // ── Borders ──
-            Set(d, "BorderColor",    IsDark ? "#343B48" : "#DDE1E8");
-            Set(d, "BorderSubtle",   IsDark ? "#2a303a" : "#EAEDF1");
-            Set(d, "BorderFocus",    IsDark ? "#5B657C" : "#B0B8C8");
+            Set(d, "BorderColor",    IsDark ? "#3F3F3F" : "#DDE1E8");
+            Set(d, "BorderSubtle",   IsDark ? "#333333" : "#EAEDF1");
+            Set(d, "BorderFocus",    IsDark ? "#55AAFF" : "#B0B8C8");
 
             // ── Status backgrounds ──
             Set(d, "SuccessBg",   IsDark ? "#0d200d" : "#E8F5E9");
