@@ -126,13 +126,22 @@ function handleStandardDelta(ws, delta, broadcast = true) {
     } else if (delta.op === 'UPDATE') {
         const existing = stateMap.get(delta.id);
         if (existing) {
-            // Fusionar Propiedades Escalares y reemplazar Grupos Atómicos (si vienen)
             if (delta.props) {
                 existing.props = { ...existing.props, ...delta.props };
             }
-            // Actualizar metadata
             existing.user = delta.user;
             existing.server_seq = delta.server_seq;
+
+            const fixMsg = JSON.stringify({
+                type: 'RECONCILE_FIX',
+                id: delta.id,
+                state: existing.props
+            });
+            const clientCount = [...wss.clients].filter(c => c !== ws && c.readyState === 1).length;
+            console.log(`[HUB] RECONCILE_FIX para '${delta.id}' -> ${clientCount} clientes (excluye sender: ${delta.user})`);
+            broadcastMessage(fixMsg, ws);
+        } else {
+            console.log(`[HUB] ⚠️ UPDATE para '${delta.id}' IGNORADO: no existe en stateMap`);
         }
     } else if (delta.op === 'DELETE') {
         stateMap.delete(delta.id);
@@ -164,12 +173,12 @@ function resetHeartbeatTimer(ws) {
         clearTimeout(aliveTimers.get(ws));
     }
     
-    // AC-305: Expulsión a los 120s sin latido
+    // AC-305: Expulsión a los 10min sin latido (600s para desarrollo)
     const timer = setTimeout(() => {
         console.log(`[!] Timeout de sesión por inactividad. Expulsando socket...`);
         ws.terminate(); 
         handleDisconnect(ws);
-    }, 120000);
+    }, 600000);
 
     aliveTimers.set(ws, timer);
 }

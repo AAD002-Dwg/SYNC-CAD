@@ -43,9 +43,17 @@ namespace HSync.Core.Network
 
         private static void OnObjectAppended(object sender, ObjectEventArgs e)
         {
-            if (_isCommandRunning && e.DBObject is Entity)
+            if (e.DBObject is Entity ent)
             {
-                _newlyCreatedObjects.Add(e.DBObject.Id);
+                // AC-601: Registrar propiedad nativa (Canónico vs Proyectado)
+                // Usamos el Handle nativo en Hexadecimal como UUID en Fase 1
+                string uuid = ent.Handle.ToString().ToLowerInvariant();
+                OwnershipRegistry.RegisterLocalEntity(uuid, ent.Id);
+
+                if (_isCommandRunning)
+                {
+                    _newlyCreatedObjects.Add(ent.Id);
+                }
             }
         }
 

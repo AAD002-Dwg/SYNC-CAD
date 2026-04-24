@@ -2,6 +2,7 @@ using System;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.DatabaseServices;
 using HSync.Core;
 using HSync.Core.Network;
 using HSync.Render;
@@ -16,6 +17,8 @@ namespace HSync
     /// </summary>
     public class HSyncPlugin : IExtensionApplication
     {
+        public static SyncSocketClient SocketClient { get; private set; }
+
         public void Initialize()
         {
             var doc = Application.DocumentManager.MdiActiveDocument;
@@ -29,6 +32,15 @@ namespace HSync
             // Inicializar Overrule matemático de geometrías efímeras
             HologramOsnapOverrule.Initialize();
             
+            // AC-601: Overrule de Ocultamiento de Nativos (Canónico vs Proyectado)
+            var entityClass = RXObject.GetClass(typeof(Entity));
+            Overrule.AddOverrule(entityClass, ShadowDrawOverrule.Instance, false);
+            Overrule.AddOverrule(entityClass, ShadowOsnapOverrule.Instance, false);
+            // Optimizacion masiva: empezamos con filtros vacíos
+            ShadowDrawOverrule.Instance.SetIdFilter(new ObjectId[0]);
+            ShadowOsnapOverrule.Instance.SetIdFilter(new ObjectId[0]);
+            Overrule.Overruling = true;
+
             // AC-401 (Diffing pre-comando)
             EventMonitor.Initialize(); 
 
@@ -84,6 +96,32 @@ namespace HSync
             Application.DocumentManager.MdiActiveDocument?.Editor.WriteMessage("\n[H-SYNC] Hologramas purgados.");
         }
 
+        [CommandMethod("HSYNC_CONNECT")]
+        public async void ConnectToHub()
+        {
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+
+            doc.Editor.WriteMessage("\n[H-SYNC] Conectando al Hub Transaccional (ws://localhost:3000)...");
+            
+            try 
+            {
+                if (SocketClient == null) 
+                {
+                    SocketClient = new SyncSocketClient("ws://localhost:3000", "ALAN-ACAD");
+                }
+
+                // Iniciamos la conexión WebSocket y el ciclo de vida (Handshake)
+                await SocketClient.ConnectAsync();
+                await HandshakeManager.InitiateConnectAsync(SocketClient, 0);
+                doc.Editor.WriteMessage("\n[H-SYNC] Conexion WebSocket Establecida. Modo Multi-Usuario Activado.");
+            }
+            catch (System.Exception ex)
+            {
+                doc.Editor.WriteMessage($"\n[H-SYNC] Error de conexion: {ex.Message}");
+            }
+        }
+
         [CommandMethod("HSYNC_HEAVY_TEST")]
         public void TestHeavyGhostInjection()
         {
@@ -119,6 +157,32 @@ namespace HSync
             
             sw.Stop();
             doc.Editor.WriteMessage($"\n[H-SYNC] 10,000 entidades pesadas combinadas inyectadas en {sw.ElapsedMilliseconds}ms. ¡Haz Pan/Zoom ahora!");
+        }
+        [CommandMethod("HSYNC_DEBUG")]
+        public void HSyncDebug()
+        {
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            var ed = doc.Editor;
+            
+            ed.WriteMessage("\n--- H-SYNC DEBUG ---");
+            ed.WriteMessage($"\nSocket Connected: {SocketClient?.IsConnected}");
+            ed.WriteMessage($"\nUUIDs en OwnershipRegistry: {OwnershipRegistry.DumpAll()}");
+            
+            // Probar el Overrule directamente
+            var res = ed.GetEntity("\nSelecciona entidad para forzar Shadowing: ");
+            if (res.Status == PromptStatus.OK)
+            {
+                var id = res.ObjectId;
+                HSync.Render.ShadowRegistry.Shadow(id);
+                ed.WriteMessage($"\nSombreado aplicado a: {id.Handle.ToString().ToLowerInvariant()}");
+                
+                using (var tr = doc.TransactionManager.StartTransaction())
+                {
+                    var ent = tr.GetObject(id, OpenMode.ForWrite) as Entity;
+                    ent.RecordGraphicsModified(true); // Forzar regeneración
+                    tr.Commit();
+                }
+            }
         }
     }
 }

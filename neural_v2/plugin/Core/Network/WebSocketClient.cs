@@ -12,6 +12,7 @@ namespace HSync.Core.Network
     public class SyncSocketClient
     {
         private ClientWebSocket _ws;
+        private CancellationTokenSource _cts; // Controla el ciclo de vida del ReceiveLoop
         private readonly string _url;
         private readonly string _userId;
 
@@ -25,81 +26,115 @@ namespace HSync.Core.Network
 
         public async Task ConnectAsync()
         {
+            // BUGFIX: Cancelar el ReceiveLoop anterior para evitar loops zombi
+            _cts?.Cancel();
+            if (_ws != null && _ws.State == WebSocketState.Open)
+            {
+                try { await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Reconectando", CancellationToken.None); }
+                catch { /* Ignorar si ya estaba muerto */ }
+            }
+
             _ws = new ClientWebSocket();
+            _cts = new CancellationTokenSource();
             
             // WAN OPTIMIZATION (AC-201):
-            // Desactiva el algoritmo de Nagle (NoDelay) a nivel TCP para que los paquetes del ratón (Deltas pequeños)
-            // salgan inmediatamente sin ser agrupados por el SO, logrando la menor latencia posible.
             _ws.Options.KeepAliveInterval = TimeSpan.Zero; 
 
             try
             {
                 await _ws.ConnectAsync(new Uri(_url), CancellationToken.None);
                 
-                // Iniciamos la oreja asíncrona pero sin bloquear el thread de AutoCAD
-                _ = ReceiveLoopAsync();
+                // Iniciamos la oreja asíncrona con el token de cancelación
+                _ = ReceiveLoopAsync(_ws, _cts.Token);
             }
             catch (Exception ex)
             {
-                // Manejo de error para intentar reconectar en el futuro.
                 Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\n[H-SYNC] Error de red: {ex.Message}");
             }
         }
 
-        private async Task ReceiveLoopAsync()
+        private async Task ReceiveLoopAsync(ClientWebSocket localWs, CancellationToken ct)
         {
-            var buffer = new byte[8192]; // Buffer suficientemente grande para Snapshots pequeños
+            var buffer = new byte[8192];
             
-            while (_ws.State == WebSocketState.Open)
+            while (localWs.State == WebSocketState.Open && !ct.IsCancellationRequested)
             {
                 try
                 {
-                    var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    var result = await localWs.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
-                        await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Cerrado por el servidor", CancellationToken.None);
+                        break;
                     }
-                    else
+
+                    string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    
+                    Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                        .MdiActiveDocument?.Editor.WriteMessage($"\n[H-SYNC NET] Recibido: {msg.Substring(0, Math.Min(msg.Length, 120))}");
+                    
+                    using (var doc = System.Text.Json.JsonDocument.Parse(msg))
                     {
-                        string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        
-                        // SANTO GRIAL DEL THREADING (Speckle Pattern):
-                        // En vez de ejecutar lógicas pesadas o de renderizado aquí en el hilo de red,
-                        // empaquetamos el trabajo en una Acción y se la pasamos a la cola Concurrente.
-                        
-                        using (var doc = System.Text.Json.JsonDocument.Parse(msg))
+                        string type = null;
+                        if (doc.RootElement.TryGetProperty("type", out var typeProp))
+                            type = typeProp.GetString();
+
+                        if (type == "RECONCILE_FIX")
                         {
-                            var type = doc.RootElement.GetProperty("type").GetString();
+                            string entityId = doc.RootElement.GetProperty("id").GetString();
+                            // BUGFIX: Serializar ANTES de salir del using (JsonElement use-after-dispose)
+                            string winnerStateRaw = doc.RootElement.GetProperty("state").GetRawText();
 
-                            if (type == "RECONCILE_FIX")
+                            Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                                .MdiActiveDocument?.Editor.WriteMessage(
+                                    $"\n[H-SYNC] RECONCILE_FIX para '{entityId}'");
+
+                            AppIdleManager.EnqueueAction(() => 
                             {
-                                string entityId = doc.RootElement.GetProperty("id").GetString();
-                                var winnerState = doc.RootElement.GetProperty("state");
+                                try
+                                {
+                                    Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                                        .MdiActiveDocument?.Editor.WriteMessage(
+                                            $"\n[H-SYNC] Ejecutando SetGlowRed('{entityId}')...");
+                                    HSync.Render.GhostManager.SetGlowRed(entityId);
+                                }
+                                catch (Exception glowEx)
+                                {
+                                    Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                                        .MdiActiveDocument?.Editor.WriteMessage(
+                                            $"\n[H-SYNC ERROR] SetGlowRed crash: {glowEx.Message}");
+                                }
+                            });
 
-                                // 1. Glow inmediato en el siguiente Idle
+                            Task.Delay(2000).ContinueWith(_ => 
+                            {
                                 AppIdleManager.EnqueueAction(() => 
                                 {
-                                    HSync.Render.GhostManager.SetGlowRed(entityId);
-                                });
-
-                                // 2. Timer asíncrono puro (No bloquea) -> Apaga Glow en el siguiente Idle post-delay
-                                Task.Delay(2000).ContinueWith(_ => 
-                                {
-                                    AppIdleManager.EnqueueAction(() => 
+                                    try
                                     {
-                                        HSync.Render.GhostManager.ApplyMergedState(entityId, winnerState);
-                                    });
+                                        using (var stateDoc = System.Text.Json.JsonDocument.Parse(winnerStateRaw))
+                                        {
+                                            HSync.Render.GhostManager.ApplyMergedState(entityId, stateDoc.RootElement);
+                                        }
+                                    }
+                                    catch (Exception mergeEx)
+                                    {
+                                        Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                                            .MdiActiveDocument?.Editor.WriteMessage(
+                                                $"\n[H-SYNC ERROR] ApplyMergedState crash: {mergeEx.Message}");
+                                    }
                                 });
-                            }
-                            else
-                            {
-                                // TODO: Fase 2 Automerge Ingestion para Deltas Normales
-                            }
+                            });
                         }
                     }
                 }
-                catch (Exception)
+                catch (OperationCanceledException)
                 {
+                    break; // Cancelación limpia por reconexión
+                }
+                catch (Exception ex)
+                {
+                    Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                        .MdiActiveDocument?.Editor.WriteMessage($"\n[H-SYNC NET] Loop Crash: {ex.Message}");
                     break;
                 }
             }
