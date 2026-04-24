@@ -1,0 +1,12 @@
+{
+  "name": "neural-v2-hub",
+  "version": "2.0.0",
+  "description": "H-SYNC Transactional WebSocket Hub",
+  "main": "hub.js",
+  "scripts": {
+    "start": "node hub.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

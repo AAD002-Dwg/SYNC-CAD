@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- SOLUCIÓN AL PROBLEMA DEL FUTURO Y PASADO (Multi-Targeting Arquitectónico) -->
+    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <Platforms>x64</Platforms>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyName>HSync</AssemblyName>
+    <RootNamespace>HSync</RootNamespace>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!-- Referencias dinámicas según la versión objetivo -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <!-- AutoCAD 2025 (.NET 8) -->
+    <PackageReference Include="AutoCAD.NET" Version="25.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="25.0.0" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <!-- AutoCAD 2024 y anteriores (.NET Framework 4.8) -->
+    <PackageReference Include="AutoCAD.NET" Version="24.1.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="24.1.0" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>
