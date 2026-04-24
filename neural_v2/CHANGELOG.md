@@ -5,6 +5,12 @@ Registro formal de todos los cambios, mejoras continuas, y adiciones arquitectó
 El formato se basa en "Keep a Changelog" y respeta SemVer (versionado semántico). Emplearemos un enfoque sistemático y estricto donde **cada cambio estructural o lógico que toque la fase de diseño es documentado aquí preventivamente.**
 
 ### Added
+- **Conectividad y Flujo Nativo (Bonus Sprint 10):**
+  - Heartbeat asíncrono (30s) en C# con `ALIVE_HEARTBEAT`.
+  - Hub optimizado: cualquier mensaje recibido resetea el timer de inactividad.
+  - `ShadowGripOverrule`: Completa el "Shadow Triplet" ocultando grips en `Ctrl+A`.
+  - Emisión automática de deltas: `EventMonitor` ahora captura `CREATE` y `UPDATE` nativos sin intervención del tester.
+  - `PayloadBuilder` compliant: Serialización compatible con `NEURAL_DATA_SCHEMA.md` (`props.geom`).
 - **Shadow Triplet Completo (Sprint 9):** Implementación end-to-end del motor de Shadowing Colaborativo. Primera prueba exitosa de co-edición en tiempo real sobre AutoCAD nativo sin polucionar el UNDO stack.
   - `ShadowDrawOverrule`: Intercepta `WorldDraw`, devuelve `true` sin geometría. Purga la entidad del índice espacial haciéndola invisible e inseleccionable por clic/ventana.
   - `ShadowOsnapOverrule`: Intercepta `GetObjectSnapPoints`, evita que el cursor se ancle a entidades sombreadas.

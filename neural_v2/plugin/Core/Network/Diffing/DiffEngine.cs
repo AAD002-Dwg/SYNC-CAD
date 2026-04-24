@@ -32,10 +32,10 @@ namespace HSync.Core.Network.Diffing
             return null;
         }
 
-        public PropDelta[] ComputeDelta(EntitySnapshot snapBefore, Entity after, Transaction tr)
+        public Dictionary<string, object> ComputeDelta(EntitySnapshot snapBefore, Entity after, Transaction tr)
         {
             if (!_differs.TryGetValue(after.GetType(), out var differ))
-                return Array.Empty<PropDelta>(); // Tipo no soportado, ignorar
+                return new Dictionary<string, object>(); // Tipo no soportado, ignorar
                 
             var snapAfter  = differ.CaptureSnapshot(after, tr);
             

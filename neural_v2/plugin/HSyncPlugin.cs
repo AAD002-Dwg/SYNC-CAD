@@ -36,9 +36,12 @@ namespace HSync
             var entityClass = RXObject.GetClass(typeof(Entity));
             Overrule.AddOverrule(entityClass, ShadowDrawOverrule.Instance, false);
             Overrule.AddOverrule(entityClass, ShadowOsnapOverrule.Instance, false);
+            Overrule.AddOverrule(entityClass, ShadowGripOverrule.Instance, false);
+
             // Optimizacion masiva: empezamos con filtros vacíos
             ShadowDrawOverrule.Instance.SetIdFilter(new ObjectId[0]);
             ShadowOsnapOverrule.Instance.SetIdFilter(new ObjectId[0]);
+            ShadowGripOverrule.Instance.SetIdFilter(new ObjectId[0]);
             Overrule.Overruling = true;
 
             // AC-401 (Diffing pre-comando)

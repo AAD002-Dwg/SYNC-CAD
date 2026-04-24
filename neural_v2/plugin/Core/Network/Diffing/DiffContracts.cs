@@ -46,6 +46,6 @@ namespace HSync.Core.Network.Diffing
     {
         EntityType Type { get; }
         EntitySnapshot CaptureSnapshot(Entity entity, Transaction tr);
-        PropDelta[] Diff(EntitySnapshot before, EntitySnapshot after);
+        System.Collections.Generic.Dictionary<string, object> Diff(EntitySnapshot before, EntitySnapshot after);
     }
 }

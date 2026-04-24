@@ -20,73 +20,14 @@
       "AutoCAD.NET/25.0.1": {
         "dependencies": {
           "AutoCAD.NET.Core": "25.0.0"
-        },
-        "runtime": {
-          "lib/net8.0/AcCui.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AcDx.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AcMgd.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AcMr.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AcSeamless.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AcTcMgd.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AcWindows.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AdUIMgd.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AdUiPalettes.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/AdWindows.dll": {
-            "assemblyVersion": "5.1.1.1",
-            "fileVersion": "5.1.1.1"
-          }
         }
       },
       "AutoCAD.NET.Core/25.0.0": {
         "dependencies": {
           "AutoCAD.NET.Model": "25.0.0"
-        },
-        "runtime": {
-          "lib/net8.0/AcCoreMgd.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          }
         }
       },
-      "AutoCAD.NET.Model/25.0.0": {
-        "runtime": {
-          "lib/net8.0/AcDbMgd.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          },
-          "lib/net8.0/acdbmgdbrep.dll": {
-            "assemblyVersion": "25.0.0.0",
-            "fileVersion": "25.0.58.0"
-          }
-        }
-      },
+      "AutoCAD.NET.Model/25.0.0": {},
       "Microsoft.NETCore.Platforms/1.1.0": {},
       "Microsoft.NETCore.Targets/1.1.0": {},
       "Newtonsoft.Json/13.0.3": {

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <Platforms>AnyCPU;x64</Platforms>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Use System.Net.WebSockets natively -->
+  </PropertyGroup>
+
+  <!-- Referencias a la API de AutoCAD (vía NuGet para máxima portabilidad) -->
+  <ItemGroup>
+    <PackageReference Include="AutoCAD.NET" Version="24.1.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="24.1.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Model" Version="24.1.0" ExcludeAssets="runtime" />
+    <!-- System.Net.WebSockets no requiere paquete externo en .NET 4.8 estándar, viene en Framework -->
+  </ItemGroup>
+
+
+  <!-- Required for JSON parsing in standard .NET 4.8 or we can just send raw strings for the spike but better a simple json parsing or raw -->
+  <!-- We'll stick to string splitting or simple parsing to avoid external DLLs -->
+</Project>

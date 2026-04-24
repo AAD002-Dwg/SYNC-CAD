@@ -40,31 +40,30 @@ namespace HSync.Core.Network.Diffing
             };
         }
 
-        public PropDelta[] Diff(EntitySnapshot before, EntitySnapshot after)
+        public Dictionary<string, object> Diff(EntitySnapshot before, EntitySnapshot after)
         {
             var b = (LineSnapshot)before;
             var a = (LineSnapshot)after;
 
-            var deltas = new List<PropDelta>(4);
+            var deltas = new Dictionary<string, object>();
 
             // Scalar-Mergeables
             if (b.Layer != a.Layer)
-                deltas.Add(new PropDelta("layer", a.Layer));
+                deltas["layer"] = a.Layer;
             if (b.Color != a.Color)
-                deltas.Add(new PropDelta("color", a.Color));
-            if (b.Linetype != a.Linetype)
-                deltas.Add(new PropDelta("linetype", a.Linetype));
-            if (b.Visible != a.Visible)
-                deltas.Add(new PropDelta("visibility", a.Visible));
+                deltas["color"] = a.Color;
 
             // Atomic-Group (Geometría completa, todo o nada)
             bool geomChanged = !a.Start.IsEqualTo(b.Start, Tolerance.Global) ||
                                !a.End.IsEqualTo(b.End, Tolerance.Global);
 
             if (geomChanged)
-                deltas.Add(new PropDelta("geom", new LineGeom(a.Start, a.End)));
+            {
+                deltas["start"] = new double[] { a.Start.X, a.Start.Y, a.Start.Z };
+                deltas["end"] = new double[] { a.End.X, a.End.Y, a.End.Z };
+            }
 
-            return deltas.ToArray();
+            return deltas;
         }
     }
 }

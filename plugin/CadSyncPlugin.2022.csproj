@@ -16,9 +16,9 @@
 
   <!-- Referencias para AutoCAD 2022 (Vía NuGet) -->
   <ItemGroup>
-    <PackageReference Include="AutoCAD.NET" Version="24.1.0" />
-    <PackageReference Include="AutoCAD.NET.Core" Version="24.1.0" />
-    <PackageReference Include="AutoCAD.NET.Model" Version="24.1.0" />
+    <PackageReference Include="AutoCAD.NET" Version="24.1.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="24.1.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Model" Version="24.1.0" ExcludeAssets="runtime" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="SocketIOClient" Version="3.1.1" />
     <PackageReference Include="SocketIOClient.Newtonsoft.Json" Version="3.0.7" />

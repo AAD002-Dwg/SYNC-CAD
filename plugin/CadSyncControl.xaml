@@ -9,6 +9,7 @@
              Background="{DynamicResource BgMain}">
 
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <SolidColorBrush x:Key="BgHeader"      Color="#383838"/>
         <SolidColorBrush x:Key="BgLabel"       Color="#323232"/>
         <SolidColorBrush x:Key="Separator"     Color="#3F3F3F"/>
@@ -202,7 +203,6 @@
             </Setter>
         </Style>
 
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </UserControl.Resources>
 
     <Grid>

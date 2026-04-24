@@ -4,7 +4,8 @@
   "description": "H-SYNC Transactional WebSocket Hub",
   "main": "hub.js",
   "scripts": {
-    "start": "node hub.js"
+    "start": "node hub.js",
+    "test:bdd": "node tester.js"
   },
   "dependencies": {
     "ws": "^8.16.0"

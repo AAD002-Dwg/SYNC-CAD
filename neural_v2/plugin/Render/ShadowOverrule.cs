@@ -19,13 +19,24 @@ namespace HSync.Render
         {
             if (_shaded.Add(id))
             {
-                // Actualizar los filtros de los Overrules para mantener O(1) de performance global
-                ShadowDrawOverrule.Instance.SetIdFilter(_shaded.ToArray());
-                ShadowOsnapOverrule.Instance.SetIdFilter(_shaded.ToArray());
+                var ids = _shaded.ToArray();
+                ShadowDrawOverrule.Instance.SetIdFilter(ids);
+                ShadowOsnapOverrule.Instance.SetIdFilter(ids);
+                ShadowGripOverrule.Instance.SetIdFilter(ids);
             }
         }
 
         public static bool IsShaded(ObjectId id) => _shaded.Contains(id);
+    }
+
+    public class ShadowGripOverrule : GripOverrule
+    {
+        public static readonly ShadowGripOverrule Instance = new ShadowGripOverrule();
+        public override void GetGripPoints(Entity entity, GripDataCollection grips, double curViewUnitSize, int gripSize, Vector3d curViewDir, GetGripPointsFlags bitFlags)
+        {
+            if (ShadowRegistry.IsShaded(entity.ObjectId)) return;
+            base.GetGripPoints(entity, grips, curViewUnitSize, gripSize, curViewDir, bitFlags);
+        }
     }
 
     /// <summary>

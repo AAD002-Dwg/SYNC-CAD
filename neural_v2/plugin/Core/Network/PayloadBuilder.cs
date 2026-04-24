@@ -1,111 +1,94 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Autodesk.AutoCAD.DatabaseServices;
 
 namespace HSync.Core.Network
 {
-    // Estructura oficial del Schema NEURAL_DATA_SCHEMA.md
+    // Estructura oficial compatible con NEURAL_DATA_SCHEMA.md
     public class EntityDelta
     {
         public string id { get; set; }
-        public string type { get; set; } // LINE, CIRCLE, BLOCKREF
+        public string projectId { get; set; } = "PROJ-TEST-AC601";
         public string user { get; set; }
         public long client_seq { get; set; }
-        public OpType op { get; set; }
-        public double[] coords { get; set; } // XYZ compactado
-        
-        // Spatial Indexing (Bounding Box: MinX, MinY, MinZ, MaxX, MaxY, MaxZ)
-        public double[] extents { get; set; } 
+        public string op { get; set; } // "CREATE", "UPDATE", "DELETE"
+        public string type { get; set; } // "LINE", "CIRCLE"
+        public EntityProps props { get; set; }
     }
 
-    public enum OpType
+    public class EntityProps
     {
-        CREATE = 1,
-        UPDATE = 2,
-        DELETE = 3,
-        UNDO = 4
+        public Dictionary<string, object> geom { get; set; }
+        public string layer { get; set; }
+        public int? color { get; set; }
     }
 
     /// <summary>
-    /// Motor de Serialización de Alto Rendimiento. 
-    /// Usa System.Text.Json nativo de .NET 8 para evitar el lag histórico de Newtonsoft.Json.
+    /// Motor de Serialización de Alto Rendimiento compatible con el Hub.
     /// </summary>
     public static class PayloadBuilder
     {
         private static readonly JsonSerializerOptions _options = new JsonSerializerOptions 
         { 
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
-        private static long _localClientSequence = 0;
+        private static long _localClientSequence = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds;
 
-        public static string BuildDelta(string globalId, Entity ent, OpType operation, string userId)
+        public static string BuildCreate(string globalId, Entity ent, string userId)
         {
             var delta = new EntityDelta
             {
                 id = globalId,
                 user = userId,
                 client_seq = ++_localClientSequence,
-                op = operation,
-                type = ent.GetType().Name.ToUpper() // 'LINE', 'CIRCLE', etc.
-            };
-
-            // Extracción plana de Coordenadas
-            if (ent is Line line)
-            {
-                delta.coords = new double[] 
-                { 
-                    line.StartPoint.X, line.StartPoint.Y, line.StartPoint.Z,
-                    line.EndPoint.X, line.EndPoint.Y, line.EndPoint.Z 
-                };
-            }
-            else if (ent is Circle circle)
-            {
-                delta.coords = new double[]
+                op = "CREATE",
+                type = ent.GetType().Name.ToUpper(),
+                props = new EntityProps
                 {
-                    circle.Center.X, circle.Center.Y, circle.Center.Z,
-                    circle.Radius
-                };
-            }
-            // Agregaremos MText / BlockRef progresivamente en base al Schema.
-
-            // Calculo Seguro de GeometricExtents (Evita eNullExtents en Transients)
-            delta.extents = CalculateSafeExtents(ent);
+                    layer = ent.Layer,
+                    color = ent.ColorIndex,
+                    geom = ExtractGeometry(ent)
+                }
+            };
 
             return JsonSerializer.Serialize(delta, _options);
         }
 
-        private static double[] CalculateSafeExtents(Entity ent)
+        public static string BuildUpdate(string globalId, Dictionary<string, object> changedProps, string userId)
         {
-            try
+            var delta = new EntityDelta
             {
-                var ext = ent.GeometricExtents;
-                return new double[] { ext.MinPoint.X, ext.MinPoint.Y, ext.MinPoint.Z, ext.MaxPoint.X, ext.MaxPoint.Y, ext.MaxPoint.Z };
-            }
-            catch (Autodesk.AutoCAD.Runtime.Exception ex) when (ex.ErrorStatus == Autodesk.AutoCAD.Runtime.ErrorStatus.NullExtents)
+                id = globalId,
+                user = userId,
+                client_seq = ++_localClientSequence,
+                op = "UPDATE",
+                props = new EntityProps
+                {
+                    geom = changedProps
+                }
+            };
+
+            return JsonSerializer.Serialize(delta, _options);
+        }
+
+        private static Dictionary<string, object> ExtractGeometry(Entity ent)
+        {
+            var geom = new Dictionary<string, object>();
+            if (ent is Line line)
             {
-                // Fallback matemático para entidades virtualizadas problemáticas
-                if (ent is Line line)
-                {
-                    double minX = Math.Min(line.StartPoint.X, line.EndPoint.X);
-                    double minY = Math.Min(line.StartPoint.Y, line.EndPoint.Y);
-                    double minZ = Math.Min(line.StartPoint.Z, line.EndPoint.Z);
-                    double maxX = Math.Max(line.StartPoint.X, line.EndPoint.X);
-                    double maxY = Math.Max(line.StartPoint.Y, line.EndPoint.Y);
-                    double maxZ = Math.Max(line.StartPoint.Z, line.EndPoint.Z);
-                    return new double[] { minX, minY, minZ, maxX, maxY, maxZ };
-                }
-                if (ent is Circle circ)
-                {
-                    return new double[] { 
-                        circ.Center.X - circ.Radius, circ.Center.Y - circ.Radius, circ.Center.Z,
-                        circ.Center.X + circ.Radius, circ.Center.Y + circ.Radius, circ.Center.Z 
-                    };
-                }
-                // Si falla, retornamos el origen
-                return new double[] { 0, 0, 0, 0, 0, 0 };
+                geom["start"] = new double[] { line.StartPoint.X, line.StartPoint.Y, line.StartPoint.Z };
+                geom["end"] = new double[] { line.EndPoint.X, line.EndPoint.Y, line.EndPoint.Z };
             }
+            else if (ent is Circle circle)
+            {
+                geom["center"] = new double[] { circle.Center.X, circle.Center.Y, circle.Center.Z };
+                geom["radius"] = circle.Radius;
+            }
+            return geom;
         }
     }
 }

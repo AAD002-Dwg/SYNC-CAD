@@ -36,6 +36,7 @@ wss.on('connection', (ws, req) => {
     resetHeartbeatTimer(ws);
 
     ws.on('message', (data) => {
+        resetHeartbeatTimer(ws);
         try {
             const payload = JSON.parse(data.toString('utf8'));
 
@@ -45,7 +46,7 @@ wss.on('connection', (ws, req) => {
                     handleConnectReq(ws, payload);
                     break;
                 case 'ALIVE_HEARTBEAT':
-                    resetHeartbeatTimer(ws);
+                    // Ya se reseteó arriba
                     break;
                 case 'DISCONNECT_REQ':
                     handleDisconnect(ws);

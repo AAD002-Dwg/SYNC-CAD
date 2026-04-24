@@ -15,19 +15,35 @@ namespace HSync.Core.Network
         private CancellationTokenSource _cts; // Controla el ciclo de vida del ReceiveLoop
         private readonly string _url;
         private readonly string _userId;
+        private System.Timers.Timer _heartbeatTimer;
 
         public bool IsConnected => _ws?.State == WebSocketState.Open;
+        public string UserId => _userId;
 
         public SyncSocketClient(string host, string userId)
         {
             _url = host;
             _userId = userId;
+
+            // AC-305: Inicializar el latido (30s)
+            _heartbeatTimer = new System.Timers.Timer(30000);
+            _heartbeatTimer.Elapsed += async (s, e) => await SendHeartbeat();
+        }
+
+        private async Task SendHeartbeat()
+        {
+            if (IsConnected)
+            {
+                try { await SendDeltaAsync("{\"type\":\"ALIVE_HEARTBEAT\"}"); }
+                catch { /* Fallo silencioso */ }
+            }
         }
 
         public async Task ConnectAsync()
         {
             // BUGFIX: Cancelar el ReceiveLoop anterior para evitar loops zombi
             _cts?.Cancel();
+            _heartbeatTimer.Stop();
             if (_ws != null && _ws.State == WebSocketState.Open)
             {
                 try { await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Reconectando", CancellationToken.None); }
@@ -44,6 +60,9 @@ namespace HSync.Core.Network
             {
                 await _ws.ConnectAsync(new Uri(_url), CancellationToken.None);
                 
+                // AC-305: Iniciar latido
+                _heartbeatTimer.Start();
+
                 // Iniciamos la oreja asíncrona con el token de cancelación
                 _ = ReceiveLoopAsync(_ws, _cts.Token);
             }

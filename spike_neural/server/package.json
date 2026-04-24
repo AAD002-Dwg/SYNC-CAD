@@ -1,0 +1,12 @@
+{
+  "name": "neural-spike-server",
+  "version": "1.0.0",
+  "description": "Minimal WebSocket server for SYNC-CAD NEURAL Spike",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

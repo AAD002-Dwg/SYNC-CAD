@@ -46,13 +46,18 @@ namespace HSync.Core.Network
             if (e.DBObject is Entity ent)
             {
                 // AC-601: Registrar propiedad nativa (Canónico vs Proyectado)
-                // Usamos el Handle nativo en Hexadecimal como UUID en Fase 1
                 string uuid = ent.Handle.ToString().ToLowerInvariant();
                 OwnershipRegistry.RegisterLocalEntity(uuid, ent.Id);
 
                 if (_isCommandRunning)
                 {
                     _newlyCreatedObjects.Add(ent.Id);
+                }
+                else
+                {
+                    // Si no hay comando (ej: dibujo directo de primitiva)
+                    // Emitimos el CREATE inmediatamente después de que el objeto sea persistido
+                    // Nota: En AutoCAD, a veces es mejor esperar al CommandEnded incluso para CIRCULO
                 }
             }
         }
@@ -62,7 +67,8 @@ namespace HSync.Core.Network
             var upperCmd = commandName.ToUpperInvariant();
             return upperCmd.Contains("MOVE") || upperCmd.Contains("COPY") || 
                    upperCmd.Contains("COLOR") || upperCmd.Contains("ERASE") ||
-                   upperCmd.Contains("GRIP") || upperCmd.Contains("PROPERTIES");
+                   upperCmd.Contains("GRIP") || upperCmd.Contains("PROPERTIES") ||
+                   upperCmd.Contains("CIRCLE") || upperCmd.Contains("LINE");
         }
 
         private static void OnCommandWillStart(object sender, CommandEventArgs e)
@@ -70,15 +76,16 @@ namespace HSync.Core.Network
             if (!IsEditCommand(e.GlobalCommandName)) return;
 
             var doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
             var editor = doc.Editor;
             
-            // Obtenemos los objetos actualmente seleccionados antes de la mutación
-            var selection = editor.SelectImplied();
-            if (selection.Status != PromptStatus.OK) return;
-
             _isCommandRunning = true;
             _preCommandSnapshots.Clear();
             _newlyCreatedObjects.Clear();
+
+            // Obtenemos los objetos actualmente seleccionados antes de la mutación
+            var selection = editor.SelectImplied();
+            if (selection.Status != PromptStatus.OK) return;
 
             using (var tr = doc.TransactionManager.StartTransaction())
             {
@@ -98,43 +105,49 @@ namespace HSync.Core.Network
             }
         }
 
-        private static void OnCommandEnded(object sender, CommandEventArgs e)
+        private static async void OnCommandEnded(object sender, CommandEventArgs e)
         {
             if (!_isCommandRunning) return;
             _isCommandRunning = false;
 
-            if (_preCommandSnapshots.Count == 0) return;
-
             var doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+
+            var client = HSyncPlugin.SocketClient;
+            if (client == null || !client.IsConnected) return;
 
             using (var tr = doc.TransactionManager.StartTransaction())
             {
-                // 1. Detección Crítica de COPY: Emitir CREATE para las entidades clonadas
+                // 1. Detección Crítica de CREATE: Entidades nuevas (ej: COPY o dibujo directo)
                 foreach (ObjectId newId in _newlyCreatedObjects)
                 {
                     if (newId.IsErased) continue;
                     var newEnt = tr.GetObject(newId, OpenMode.ForRead) as Entity;
                     if (newEnt != null)
                     {
-                        // TODO: PayloadBuilder.EmitCreate(newId.Handle.Value.ToString(), newEnt);
-                        // Esto garantiza que el CREATE viaja antes del UPDATE
+                        string uuid = newId.Handle.ToString().ToLowerInvariant();
+                        string json = PayloadBuilder.BuildCreate(uuid, newEnt, client.UserId);
+                        await client.SendDeltaAsync(json);
                     }
                 }
 
-                // 2. Diffing Clásico: Emitir UPDATE para entidades mutadas
+                // 2. Diffing Clásico: Emitir UPDATE para entidades mutadas (ej: MOVE)
                 foreach (var kvp in _preCommandSnapshots)
                 {
                     ObjectId id = kvp.Key;
                     EntitySnapshot before = kvp.Value;
 
-                    if (id.IsErased) continue; // Si se borró, sería un DELETE, se maneja distinto
+                    if (id.IsErased) continue; 
 
                     var after = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                    var propDeltas = _diffEngine.ComputeDelta(before, after, tr);
+                    if (after == null) continue;
 
-                    if (propDeltas.Length > 0)
+                    var changes = _diffEngine.ComputeDelta(before, after, tr);
+                    if (changes.Count > 0)
                     {
-                        // TODO: PayloadBuilder.EmitUpdate(id.Handle.Value.ToString(), propDeltas);
+                        string uuid = id.Handle.ToString().ToLowerInvariant();
+                        string json = PayloadBuilder.BuildUpdate(uuid, changes, client.UserId);
+                        await client.SendDeltaAsync(json);
                     }
                 }
                 tr.Commit();
